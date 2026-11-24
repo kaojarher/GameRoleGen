@@ -7,7 +7,7 @@
 基本格式：
 
 ```text
-https://YOUR_GITHUB_USER.github.io/YOUR_REPO/64_64%E6%AD%A3%E9%9D%A2.html?gender=female&class=mage&ears=elf&hair=ponytail&weapon=staff&cape=1&beard=0&skin=%23f2c29b&hairColor=%232c1e16&primary=%232a3f8f&accent=%23e0a82e&capeColor=%232b5fb0&bg=transparent&zoom=4
+https://kaojarher.github.io/GameRoleGen/index.html?gender=female&class=mage&ears=elf&hair=ponytail&weapon=staff&cape=1&beard=0&skin=%23f2c29b&hairColor=%232c1e16&primary=%232a3f8f&accent=%23e0a82e&capeColor=%232b5fb0&bg=transparent&zoom=4
 ```
 
 可用參數：
