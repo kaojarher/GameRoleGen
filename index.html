@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>武俠戰棋像素角色產生器 (64×64)</title>
+  <meta name="description" content="可透過 URL 參數與 JavaScript API 產生 64×64 武俠戰棋 2.5D 正背面像素角色 PNG。" />
+  <title>武俠戰棋像素角色產生器 (64×64 · 45°正背面)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -75,11 +76,11 @@
           </div>
         </div>
 
-        <!-- 雙視角畫布舞台 -->
+        <!-- 雙側面畫布舞台 -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center justify-items-center py-2">
           <div class="flex flex-col items-center gap-2 w-full">
             <div class="text-xs font-semibold tracking-wider uppercase text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
-              45° 正面 (Front)
+              45° 正面 (Front 3/4)
             </div>
             <div id="frontWrapper" class="chroma-green rounded-2xl border-2 border-slate-700/80 shadow-inner flex items-center justify-center overflow-hidden p-2 transition-all">
               <canvas id="frontDisplay" width="64" height="64" class="pixelated"></canvas>
@@ -88,7 +89,7 @@
 
           <div class="flex flex-col items-center gap-2 w-full">
             <div class="text-xs font-semibold tracking-wider uppercase text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-full">
-              45° 背面 (Back)
+              45° 背面 (Back 3/4)
             </div>
             <div id="backWrapper" class="chroma-green rounded-2xl border-2 border-slate-700/80 shadow-inner flex items-center justify-center overflow-hidden p-2 transition-all">
               <canvas id="backDisplay" width="64" height="64" class="pixelated"></canvas>
@@ -109,7 +110,7 @@
               ⬇ 下載背面 64×64 PNG
             </button>
             <button id="btnDlSheet" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 transition cursor-pointer">
-              ⬇ 下載合併 128×64 精靈圖
+              ⬇ 下載正背合併 128×64 精靈圖
             </button>
           </div>
         </div>
@@ -142,6 +143,11 @@
             <option value="swordsman">俠客 / 劍士 (Tunic & Boots)</option>
             <option value="general">武將 / 戰士 (Heavy Armor)</option>
             <option value="mystic">方士 / 行者 (Mystic Sash)</option>
+            <option value="mage">法師 / 巫師 (Arcane Robe)</option>
+            <option value="priest">牧師 / 聖職者 (Holy Vestments)</option>
+            <option value="rogue">盜賊 / 刺客 (Shadow Gear)</option>
+            <option value="ranger">遊俠 / 弓手 (Ranger Cloak)</option>
+            <option value="monk">武僧 / 格鬥家 (Monk Wraps)</option>
           </select>
         </div>
 
@@ -153,6 +159,16 @@
             <option value="elderBun">長者道髻 / 銀釵 (Elder Bun)</option>
             <option value="twinBun">雙環髻 / 側分長髮 (Twin Bun)</option>
             <option value="headband">束髮布巾 (Headband)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-300">耳朵 / 種族 (Ears)</label>
+          <select id="selEars" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+            <option value="human">人類耳 (Human)</option>
+            <option value="elf">精靈耳 (Elf)</option>
+            <option value="beast">獸耳 (Beast)</option>
+            <option value="demon">魔族耳 (Demon)</option>
           </select>
         </div>
 
@@ -216,7 +232,19 @@
               <input id="colCape" type="color" value="#2b5fb0" class="w-7 h-7 rounded bg-transparent border-0 cursor-pointer" />
               <span id="hexCape" class="text-[11px] font-mono text-slate-300">#2b5fb0</span>
             </div>
-          </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-4 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">分享設定 URL</h3>
+          <span class="text-[11px] text-emerald-400">可直接貼上產生</span>
+        </div>
+        <p class="text-[11px] leading-relaxed text-slate-400">目前屬性會同步寫入網址；把網址分享給其他人即可還原同一角色。加上 <code class="text-sky-300">download=front</code>、<code class="text-sky-300">download=back</code> 或 <code class="text-sky-300">download=sheet</code> 可開啟網址後直接下載 PNG。</p>
+        <div class="flex gap-2">
+          <input id="shareUrl" readonly class="min-w-0 flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-300 focus:outline-none" />
+          <button id="btnCopyUrl" class="shrink-0 px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white transition cursor-pointer">複製 URL</button>
         </div>
       </div>
     </aside>
@@ -1004,6 +1032,27 @@ function drawFace(pc, st, P) {
   }
 }
 
+function drawEars(pc, st, P) {
+  if (st.ears === 'human') return;
+  if (st.ears === 'elf') {
+    pc.line(25, 17, 19, 14, P.skin.hi);
+    pc.line(25, 18, 19, 16, P.skin.sh);
+    pc.line(39, 17, 45, 14, P.skin.base);
+    pc.line(39, 18, 45, 16, P.skin.sh);
+  } else if (st.ears === 'beast') {
+    pc.line(25, 14, 21, 9, P.hair.hi);
+    pc.line(25, 15, 21, 11, P.hair.sh);
+    pc.line(39, 14, 43, 9, P.hair.base);
+    pc.line(39, 15, 43, 11, P.hair.sh);
+    pc.px(22, 12, P.skin.sh); pc.px(42, 12, P.skin.sh);
+  } else if (st.ears === 'demon') {
+    pc.line(26, 13, 23, 7, P.skin.deep);
+    pc.line(26, 14, 23, 10, P.skin.sh);
+    pc.line(38, 13, 41, 7, P.skin.deep);
+    pc.line(38, 14, 41, 10, P.skin.sh);
+  }
+}
+
 function drawBeard(pc, P) {
   for (let x = 29; x <= 35; x++) pc.px(x, 22, x < 32 ? P.hair.base : P.hair.sh);
   pc.px(28, 21, P.hair.base);
@@ -1028,7 +1077,8 @@ function drawHeadFront(pc, st, P) {
   pc.volume(32, 14.5, 10, 9.2, P.hair, { mod });
   // 女性側邊長髮 / 雙環髻垂髮
   if (!m || hair === 'twinBun') {
-    const len = hair === 'twinBun' ? 29 : 24;
+    // 女性長髮延伸到肩線，讓 64×64 小圖仍能清楚辨識性別。
+    const len = hair === 'twinBun' ? 33 : (!m ? 32 : 24);
     pc.volume(23, (17 + len) / 2, 2.6, (len - 17) / 2 + 1, P.hair, { mod });
     pc.volume(41, (17 + len) / 2, 2.6, (len - 17) / 2 + 1, P.hair, { mod });
   }
@@ -1049,6 +1099,7 @@ function drawHeadFront(pc, st, P) {
     pc.volume(41, 25, 1.4, 2.4, P.hair, { mod });
   }
 
+  drawEars(pc, st, P);
   drawFace(pc, st, P);
   drawBangs(pc, st, P);
   castHairShadow(pc, P);
@@ -1091,6 +1142,23 @@ function drawHeadFront(pc, st, P) {
   }
 
   if (st.beard) drawBeard(pc, P);
+  if (!m) drawFemaleFaceAccents(pc, P);
+}
+
+function drawFemaleFaceAccents(pc, P) {
+  // 清楚的外眼角睫毛與柔和眉線。
+  pc.px(26, 16, P.hair.deep);
+  pc.px(27, 15, P.hair.deep);
+  pc.px(37, 15, P.hair.deep);
+  pc.px(38, 16, P.hair.deep);
+
+  // 腮紅增加臉部表情；嘴角用兩像素粉色嘴型保留像素清晰度。
+  const blush = { r: Math.round(P.skin.base.r * 0.72 + 244 * 0.28), g: Math.round(P.skin.base.g * 0.72 + 126 * 0.28), b: Math.round(P.skin.base.b * 0.72 + 136 * 0.28), a: 255 };
+  const lip = { r: 218, g: 91, b: 120, a: 255 };
+  pc.px(26, 21, blush); pc.px(27, 21, blush);
+  pc.px(37, 21, blush); pc.px(38, 21, blush);
+  pc.px(31, 23, lip); pc.px(32, 23, lip);
+  pc.px(32, 24, P.skin.sh);
 }
 
 /* 瀏海覆蓋後重新點上眼、鼻、口（避免被髮絲蓋掉） */
@@ -1109,9 +1177,15 @@ function drawFaceFeaturesOnly(pc, st, P) {
     if (m) {
       pc.px(ex + 1, 17, EYE_DARK); pc.px(ex + 2, 17, EYE_DARK);
       pc.px(ex, 18, EYE_WHITE); pc.px(ex + 1, 18, EYE_DARK); pc.px(ex + 2, 18, EYE_DARK);
+    } else if (ex === 28) {
+      // 三分之四視角的遠側眼縮小，避免女性臉仍像完全正面。
+      pc.px(29, 17, EYE_DARK);
+      pc.px(28, 18, EYE_WHITE); pc.px(29, 18, EYE_IRIS);
+      pc.px(29, 19, P.skin.sh);
     } else {
+      // 近側眼保留較大的虹膜與高光，接近參考圖的日式像素角色。
       pc.px(ex, 17, EYE_DARK); pc.px(ex + 1, 17, EYE_DARK); pc.px(ex + 2, 17, EYE_DARK);
-      pc.px(ex === 28 ? ex - 1 : ex + 3, 17, EYE_DARK);
+      pc.px(ex + 3, 17, EYE_DARK);
       pc.px(ex, 18, EYE_WHITE); pc.px(ex + 1, 18, EYE_IRIS); pc.px(ex + 2, 18, EYE_DARK);
       pc.px(ex + 1, 19, EYE_IRIS); pc.px(ex + 2, 19, P.skin.sh);
     }
@@ -1133,7 +1207,7 @@ function drawHeadBack(pc, st, P) {
 
   // 長髮披肩
   if (!m || hair === 'twinBun') {
-    const bot = hair === 'twinBun' ? 32 : 28;
+    const bot = hair === 'twinBun' ? 34 : (!m ? 32 : 28);
     pc.volume(32, (20 + bot) / 2, 7.4, (bot - 20) / 2 + 1, P.hair, { mod });
   }
   // 後腦
@@ -1212,6 +1286,54 @@ function drawGroundShadow(pc) {
   pc.ellipse(31, 57, 15, 3.8, { r: 0, g: 0, b: 0, a: 105 }, true);
 }
 
+function drawMageBody(pc, view, st, P) {
+  drawMysticBody(pc, view, st, P);
+  if (view === 'front') {
+    bandRows(pc, 29, 31, 25, 39, P.acc, P.pri);
+    pc.line(28, 32, 24, 45, P.acc.base);
+    pc.line(36, 32, 40, 45, P.acc.sh);
+    pc.px(32, 34, P.acc.hi);
+  }
+}
+
+function drawPriestBody(pc, view, st, P) {
+  drawNobleBody(pc, view, st, P, false);
+  if (view === 'front') {
+    for (let y = 29; y <= 48; y++) pc.px(32, y, y % 3 === 0 ? P.acc.hi : P.inner.base);
+    pc.px(32, 31, P.acc.hi); pc.px(31, 32, P.acc.base); pc.px(33, 32, P.acc.base);
+  }
+}
+
+function drawRogueBody(pc, view, st, P) {
+  drawSwordsmanBody(pc, view, st, P);
+  if (view === 'front') {
+    pc.rect(27, 29, 10, 2, P.pri.deep);
+    pc.line(27, 31, 24, 42, P.pri.sh);
+    pc.line(37, 31, 40, 42, P.pri.deep);
+  }
+}
+
+function drawRangerBody(pc, view, st, P) {
+  drawSwordsmanBody(pc, view, st, P);
+  if (st.cape) return;
+  if (view === 'front') {
+    pc.line(25, 29, 20, 49, P.pri.sh);
+    pc.line(39, 29, 44, 49, P.pri.deep);
+    bandRows(pc, 38, 40, 24, 40, P.acc, P.pri);
+  } else {
+    robe(pc, 28, 52, prof([[28, 8], [42, 11], [52, 14]]), P.priLayer, { cx: 32 });
+  }
+}
+
+function drawMonkBody(pc, view, st, P) {
+  drawNobleBody(pc, view, st, P, true);
+  if (view === 'front') {
+    bandRows(pc, 35, 38, 24, 40, P.acc, P.pri);
+    pc.line(27, 39, 24, 48, P.acc.base);
+    pc.line(37, 39, 40, 48, P.acc.sh);
+  }
+}
+
 function drawBody(pc, view, st, P) {
   switch (st.cls) {
     case 'noble': drawNobleBody(pc, view, st, P, false); break;
@@ -1219,6 +1341,11 @@ function drawBody(pc, view, st, P) {
     case 'swordsman': drawSwordsmanBody(pc, view, st, P); break;
     case 'general': drawGeneralBody(pc, view, st, P); break;
     case 'mystic': drawMysticBody(pc, view, st, P); break;
+    case 'mage': drawMageBody(pc, view, st, P); break;
+    case 'priest': drawPriestBody(pc, view, st, P); break;
+    case 'rogue': drawRogueBody(pc, view, st, P); break;
+    case 'ranger': drawRangerBody(pc, view, st, P); break;
+    case 'monk': drawMonkBody(pc, view, st, P); break;
   }
 }
 
@@ -1252,6 +1379,96 @@ function renderCharacter(state) {
 
   return { frontPC, backPC };
 }
+
+/*
+ * 將正面或背面角色轉成參考圖風格的 45° 三分之四視角。
+ * 這不是整張圖片的 affine 傾斜：先縮短遠側，再沿「左下 → 右上」
+ * 對角線重複疊圖，擠出可見的側面平面。陰影明度統一由左上往右下變深。
+ */
+function shadePixel(p, amount = 0.22) {
+  return {
+    r: Math.max(0, Math.round(p.r * (1 - amount))),
+    g: Math.max(0, Math.round(p.g * (1 - amount))),
+    b: Math.max(0, Math.round(p.b * (1 - amount))),
+    a: p.a ?? 255,
+    noOutline: true
+  };
+}
+
+function pickInnerMaterial(base, x, y, fallback) {
+  const candidates = [
+    base.get(x - 1, y), base.get(x - 2, y),
+    base.get(x, y + 1), base.get(x - 1, y + 1),
+    base.get(x, y + 2)
+  ].filter(p => p && p.a === 255);
+  if (!candidates.length) return fallback;
+  // 選輪廓內較亮的材質，避免把黑色描邊延伸成頭部陰影。
+  return candidates.reduce((best, p) => {
+    const lum = p.r * 0.3 + p.g * 0.59 + p.b * 0.11;
+    const bestLum = best.r * 0.3 + best.g * 0.59 + best.b * 0.11;
+    return lum > bestLum ? p : best;
+  });
+}
+
+function isWeaponPixel(x, y, state) {
+  // 武器也疊圖，但限制為最多 3 層；其他元素可依部位使用完整厚度。
+  if (state.weapon === 'staff' && (x <= 21 || x >= 44)) return true;
+  if (state.weapon === 'whisk' && (x <= 21 || x >= 43) && y >= 20 && y <= 46) return true;
+  if (state.weapon === 'broadsword' && y >= 34 && (x <= 25 || x >= 39)) return true;
+  if (state.weapon === 'backSword' && ((x >= 37 && y <= 27) || (x >= 27 && x <= 47 && y >= 42))) return true;
+  return false;
+}
+
+function project45ThreeQuarter(source, state) {
+  const base = new PixelCanvas(64, 64);
+  const projected = [];
+
+  // 遠側縮短、近側保留，避免整體只像被旋轉或傾斜。
+  for (let y = 0; y < source.h; y++) {
+    for (let x = 0; x < source.w; x++) {
+      const p = source.get(x, y);
+      if (!p) continue;
+      const projectedX = Math.round(31 + (x - 32) * (x < 32 ? 0.73 : 0.91));
+      if (projectedX >= 0 && projectedX < 64) {
+        base.px(projectedX, y, p, p.noOutline);
+        projected.push([projectedX, y, p]);
+      }
+    }
+  }
+
+  // 只從人物外輪廓擠出側面，不複製身體內部像素。
+  // 這是 2.5D sprite 的關鍵：內部保持單一正面平面，避免出現重影。
+  const side = new PixelCanvas(64, 64);
+  for (let d = 5; d >= 1; d--) {
+    for (const [x, y, p] of projected) {
+      const tx = x + d;
+      const ty = y - d;
+      if (tx < 0 || tx >= 64 || ty < 0 || ty >= 64 || side.get(tx, ty) || base.get(tx, ty)) continue;
+      const weapon = isWeaponPixel(x, y, state);
+      const normalDepth = y < 9 ? 1 : y < 14 ? 2 : y < 28 ? 3 : y < 48 ? 5 : 3;
+      const depthLimit = weapon ? 3 : normalDepth;
+      const isContour = !base.get(x + 1, y - 1) || !base.get(x + 1, y) || !base.get(x, y - 1);
+      if (!isContour) continue;
+      if (d <= depthLimit) {
+        const shadowAmount = 0.08 + (d / depthLimit) * 0.18;
+        // 輪廓本身通常是黑色描邊，側面要取輪廓內側材質，避免頭部變成黑色尖角。
+        const material = pickInnerMaterial(base, x, y, p);
+        side.px(tx, ty, shadePixel(material, shadowAmount), true);
+      }
+    }
+  }
+
+  // 正面平面最後疊回來，讓側面影子只出現在輪廓外，不會污染角色主體。
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x++) {
+      const p = base.get(x, y) || side.get(x, y);
+      if (p) {
+        if (base.get(x, y)) side.px(x, y, p, p.noOutline);
+      }
+    }
+  }
+  return side;
+}
 // ===ENGINE_END===
 
     /* =========================================================
@@ -1261,6 +1478,7 @@ function renderCharacter(state) {
       gender: document.getElementById('selGender'),
       cls: document.getElementById('selClass'),
       hair: document.getElementById('selHair'),
+      ears: document.getElementById('selEars'),
       weapon: document.getElementById('selWeapon'),
       cape: document.getElementById('chkCape'),
       beard: document.getElementById('chkBeard'),
@@ -1272,7 +1490,9 @@ function renderCharacter(state) {
       frontCanvas: document.getElementById('frontDisplay'),
       backCanvas: document.getElementById('backDisplay'),
       frontWrapper: document.getElementById('frontWrapper'),
-      backWrapper: document.getElementById('backWrapper')
+      backWrapper: document.getElementById('backWrapper'),
+      shareUrl: document.getElementById('shareUrl'),
+      copyUrl: document.getElementById('btnCopyUrl')
     };
 
     let currentZoom = 4;
@@ -1283,6 +1503,7 @@ function renderCharacter(state) {
         gender: ui.gender.value,
         cls: ui.cls.value,
         hair: ui.hair.value,
+        ears: ui.ears.value,
         weapon: ui.weapon.value,
         cape: ui.cape.checked,
         beard: ui.beard.checked,
@@ -1292,6 +1513,49 @@ function renderCharacter(state) {
         colAccent: ui.colAccent.value,
         colCape: ui.colCape.value
       };
+    }
+
+    const URL_KEYS = {
+      gender: 'gender', cls: 'class', hair: 'hair', ears: 'ears', weapon: 'weapon',
+      cape: 'cape', beard: 'beard', colSkin: 'skin', colHair: 'hairColor',
+      colPrimary: 'primary', colAccent: 'accent', colCape: 'capeColor'
+    };
+
+    function updateShareUrl() {
+      const params = new URLSearchParams();
+      const state = getState();
+      Object.entries(URL_KEYS).forEach(([stateKey, urlKey]) => {
+        const value = state[stateKey];
+        params.set(urlKey, typeof value === 'boolean' ? (value ? '1' : '0') : value);
+      });
+      params.set('bg', bgMode);
+      params.set('zoom', String(currentZoom));
+      const baseUrl = window.location.href.split('?')[0].split('#')[0];
+      const url = `${baseUrl}?${params.toString()}`;
+      ui.shareUrl.value = url;
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }
+
+    function applyUrlState() {
+      const params = new URLSearchParams(window.location.search);
+      const setSelect = (el, key) => {
+        if (params.has(key) && [...el.options].some(o => o.value === params.get(key))) el.value = params.get(key);
+      };
+      setSelect(ui.gender, URL_KEYS.gender);
+      setSelect(ui.cls, URL_KEYS.cls);
+      setSelect(ui.hair, URL_KEYS.hair);
+      setSelect(ui.ears, URL_KEYS.ears);
+      setSelect(ui.weapon, URL_KEYS.weapon);
+      [['cape', ui.cape], ['beard', ui.beard]].forEach(([key, el]) => {
+        if (params.has(key)) el.checked = params.get(key) === '1' || params.get(key) === 'true';
+      });
+      [['skin', ui.colSkin], ['hairColor', ui.colHair], ['primary', ui.colPrimary], ['accent', ui.colAccent], ['capeColor', ui.colCape]].forEach(([key, el]) => {
+        const value = params.get(key);
+        if (value && /^#[0-9a-f]{6}$/i.test(value)) el.value = value;
+      });
+      if (params.get('bg') === 'transparent') bgMode = 'transparent';
+      const zoom = Number(params.get('zoom'));
+      if ([2, 4, 6].includes(zoom)) currentZoom = zoom;
     }
 
     function updateHexLabels() {
@@ -1312,10 +1576,14 @@ function renderCharacter(state) {
 
     function renderAll() {
       updateHexLabels();
-      const { frontPC, backPC } = renderCharacter(getState());
-      frontPC.renderToCanvas(ui.frontCanvas, bgMode);
-      backPC.renderToCanvas(ui.backCanvas, bgMode);
+      const state = getState();
+      const { frontPC, backPC } = renderCharacter(state);
+      const front45PC = project45ThreeQuarter(frontPC, state);
+      const back45PC = project45ThreeQuarter(backPC, state);
+      front45PC.renderToCanvas(ui.frontCanvas, bgMode);
+      back45PC.renderToCanvas(ui.backCanvas, bgMode);
       applyZoom();
+      updateShareUrl();
     }
 
     function showToast(msg) {
@@ -1338,8 +1606,9 @@ function renderCharacter(state) {
 
     document.getElementById('btnRandom').addEventListener('click', () => {
       ui.gender.value = pick(['male', 'female']);
-      ui.cls.value = pick(['noble', 'elder', 'swordsman', 'general', 'mystic']);
+      ui.cls.value = pick(['noble', 'elder', 'swordsman', 'general', 'mystic', 'mage', 'priest', 'rogue', 'ranger', 'monk']);
       ui.hair.value = pick(['crown', 'ponytail', 'elderBun', 'twinBun', 'headband']);
+      ui.ears.value = pick(['human', 'human', 'elf', 'beast', 'demon']);
       ui.weapon.value = pick(['none', 'backSword', 'whisk', 'broadsword', 'staff']);
       ui.cape.checked = Math.random() > 0.55;
       ui.beard.checked = ui.gender.value === 'male' && (ui.cls.value === 'elder' || Math.random() > 0.65);
@@ -1388,7 +1657,7 @@ function renderCharacter(state) {
       renderAll();
     });
 
-    [ui.gender, ui.cls, ui.hair, ui.weapon, ui.cape, ui.beard, ui.colSkin, ui.colHair, ui.colPrimary, ui.colAccent, ui.colCape]
+    [ui.gender, ui.cls, ui.hair, ui.ears, ui.weapon, ui.cape, ui.beard, ui.colSkin, ui.colHair, ui.colPrimary, ui.colAccent, ui.colCape]
       .forEach(el => el.addEventListener('input', renderAll));
 
     function downloadCanvas(canvas, filename) {
@@ -1398,28 +1667,94 @@ function renderCharacter(state) {
       link.click();
     }
 
-    document.getElementById('btnDlFront').addEventListener('click', () => {
-      downloadCanvas(ui.frontCanvas, `wuxia-front-64x64-${bgMode}.png`);
-      showToast('已下載 45° 正面 64×64 PNG！');
-    });
-
-    document.getElementById('btnDlBack').addEventListener('click', () => {
-      downloadCanvas(ui.backCanvas, `wuxia-back-64x64-${bgMode}.png`);
-      showToast('已下載 45° 背面 64×64 PNG！');
-    });
-
-    document.getElementById('btnDlSheet').addEventListener('click', () => {
+    function makeSheetCanvas() {
       const sheet = document.createElement('canvas');
       sheet.width = 128;
       sheet.height = 64;
       const ctx = sheet.getContext('2d');
       ctx.drawImage(ui.frontCanvas, 0, 0);
       ctx.drawImage(ui.backCanvas, 64, 0);
-      downloadCanvas(sheet, `wuxia-sheet-128x64-${bgMode}.png`);
-      showToast('已下載合併精靈圖 128×64 PNG！');
+      return sheet;
+    }
+
+    document.getElementById('btnDlFront').addEventListener('click', () => {
+      downloadCanvas(ui.frontCanvas, `wuxia-front-45deg-64x64-${bgMode}.png`);
+      showToast('已下載 45° 正面 64×64 PNG！');
     });
 
-    window.onload = () => { renderAll(); };
+    document.getElementById('btnDlBack').addEventListener('click', () => {
+      downloadCanvas(ui.backCanvas, `wuxia-back-45deg-64x64-${bgMode}.png`);
+      showToast('已下載 45° 背面 64×64 PNG！');
+    });
+
+    document.getElementById('btnDlSheet').addEventListener('click', () => {
+      const sheet = makeSheetCanvas();
+      downloadCanvas(sheet, `wuxia-front-back-128x64-${bgMode}.png`);
+      showToast('已下載正背面合併精靈圖 128×64 PNG！');
+    });
+
+    ui.copyUrl.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(ui.shareUrl.value);
+        showToast('已複製設定 URL，可直接分享！');
+      } catch {
+        ui.shareUrl.select();
+        document.execCommand('copy');
+        showToast('已複製設定 URL，可直接分享！');
+      }
+    });
+
+    // 給 GitHub Pages、LLM、瀏覽器自動化與外部腳本使用的穩定 API。
+    // 例如：window.CharacterGenerator.setState({ gender: 'female', weapon: 'broadsword' })
+    window.CharacterGenerator = {
+      version: '1.0.0',
+      getState,
+      getUrl: () => ui.shareUrl.value,
+      render: renderAll,
+      setState(next = {}) {
+        const fields = {
+          gender: ui.gender, cls: ui.cls, hair: ui.hair, ears: ui.ears, weapon: ui.weapon,
+          cape: ui.cape, beard: ui.beard, colSkin: ui.colSkin, colHair: ui.colHair,
+          colPrimary: ui.colPrimary, colAccent: ui.colAccent, colCape: ui.colCape
+        };
+        Object.entries(next).forEach(([key, value]) => {
+          const el = fields[key];
+          if (!el || value === undefined || value === null) return;
+          if (el.type === 'checkbox') el.checked = value === true || value === 1 || value === '1';
+          else el.value = String(value);
+        });
+        renderAll();
+        return getState();
+      },
+      download(kind = 'front') {
+        if (kind === 'front') downloadCanvas(ui.frontCanvas, `wuxia-front-45deg-64x64-${bgMode}.png`);
+        else if (kind === 'back') downloadCanvas(ui.backCanvas, `wuxia-back-45deg-64x64-${bgMode}.png`);
+        else if (kind === 'sheet') downloadCanvas(makeSheetCanvas(), `wuxia-front-back-128x64-${bgMode}.png`);
+        else throw new Error('download must be front, back, or sheet');
+      }
+    };
+
+    window.onload = () => {
+      const requestedDownload = new URLSearchParams(window.location.search).get('download');
+      applyUrlState();
+      const wantsTransparent = bgMode === 'transparent';
+      if (wantsTransparent) {
+        bgMode = 'green';
+        document.getElementById('btnBgToggle').click();
+      }
+      renderAll();
+      if (['front', 'back', 'sheet'].includes(requestedDownload)) {
+        setTimeout(() => {
+          if (requestedDownload === 'front') {
+            downloadCanvas(ui.frontCanvas, `wuxia-front-45deg-64x64-${bgMode}.png`);
+          } else if (requestedDownload === 'back') {
+            downloadCanvas(ui.backCanvas, `wuxia-back-45deg-64x64-${bgMode}.png`);
+          } else {
+            downloadCanvas(makeSheetCanvas(), `wuxia-front-back-128x64-${bgMode}.png`);
+          }
+        }, 180);
+      }
+    };
   </script>
 </body>
 </html>

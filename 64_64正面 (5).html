@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="可透過 URL 參數與 JavaScript API 產生 64×64 武俠戰棋 2.5D 正背面像素角色 PNG。" />
+  <title>武俠戰棋像素角色產生器 (64×64 · 45°正背面)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+    .pixelated {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .checkerboard {
+      background-color: #1e293b;
+      background-image:
+        linear-gradient(45deg, #334155 25%, transparent 25%),
+        linear-gradient(-45deg, #334155 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #334155 75%),
+        linear-gradient(-45deg, transparent 75%, #334155 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+    .chroma-green { background-color: #009900; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <!-- 頂部導覽列 -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-lg font-bold text-white">
+          俠
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">武俠戰棋像素角色產生器</h1>
+          <p class="text-xs text-slate-400">64×64 原生解析度 · 45° 正面 / 45° 背面 · 16-bit 等角精靈</p>
+        </div>
+      </div>
+
+      <button id="btnRandom" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 active:scale-95 transition text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer">
+        <span>🎲</span>
+        <span>隨機產生</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- 左側/上方：預覽舞台與匯出 -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col gap-5">
+        <!-- 預覽控制列 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-slate-400">預覽縮放：</span>
+            <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+              <button data-zoom="2" class="zoom-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition cursor-pointer">2×</button>
+              <button data-zoom="4" class="zoom-btn px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition cursor-pointer">4×</button>
+              <button data-zoom="6" class="zoom-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition cursor-pointer">6×</button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-slate-400">背景模式：</span>
+            <button id="btnBgToggle" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium flex items-center gap-2 transition cursor-pointer">
+              <span id="bgDot" class="w-3 h-3 rounded-full bg-[#009900] border border-white/40 inline-block"></span>
+              <span id="bgLabel">綠幕 (#009900)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 雙側面畫布舞台 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center justify-items-center py-2">
+          <div class="flex flex-col items-center gap-2 w-full">
+            <div class="text-xs font-semibold tracking-wider uppercase text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+              45° 正面 (Front 3/4)
+            </div>
+            <div id="frontWrapper" class="chroma-green rounded-2xl border-2 border-slate-700/80 shadow-inner flex items-center justify-center overflow-hidden p-2 transition-all">
+              <canvas id="frontDisplay" width="64" height="64" class="pixelated"></canvas>
+            </div>
+          </div>
+
+          <div class="flex flex-col items-center gap-2 w-full">
+            <div class="text-xs font-semibold tracking-wider uppercase text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-full">
+              45° 背面 (Back 3/4)
+            </div>
+            <div id="backWrapper" class="chroma-green rounded-2xl border-2 border-slate-700/80 shadow-inner flex items-center justify-center overflow-hidden p-2 transition-all">
+              <canvas id="backDisplay" width="64" height="64" class="pixelated"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 匯出按鈕區 -->
+        <div class="border-t border-slate-800 pt-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="text-xs text-slate-400">
+            匯出將保留 <span id="exportBgHint" class="text-emerald-400 font-semibold">綠幕 (#009900)</span> 背景與 64×64 原生像素。
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btnDlFront" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition cursor-pointer">
+              ⬇ 下載正面 64×64 PNG
+            </button>
+            <button id="btnDlBack" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition cursor-pointer">
+              ⬇ 下載背面 64×64 PNG
+            </button>
+            <button id="btnDlSheet" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 transition cursor-pointer">
+              ⬇ 下載正背合併 128×64 精靈圖
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="toast" class="hidden rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs px-4 py-2.5 font-medium"></div>
+    </section>
+
+    <!-- 右側/下方：角色特徵自訂面板 -->
+    <aside class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col gap-5 h-fit">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h2 class="text-sm font-bold text-white tracking-wide">角色特徵設定</h2>
+        <span class="text-[11px] text-slate-400">即時同步正背面</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-300">性別 (Gender)</label>
+          <select id="selGender" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+            <option value="male">男性 (Male)</option>
+            <option value="female">女性 (Female)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-300">職業 / 服裝 (Class)</label>
+          <select id="selClass" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+            <option value="noble">皇族 / 文官 (Layered Robes)</option>
+            <option value="elder">長老 / 道士 (Taoist Robe)</option>
+            <option value="swordsman">俠客 / 劍士 (Tunic & Boots)</option>
+            <option value="general">武將 / 戰士 (Heavy Armor)</option>
+            <option value="mystic">方士 / 行者 (Mystic Sash)</option>
+            <option value="mage">法師 / 巫師 (Arcane Robe)</option>
+            <option value="priest">牧師 / 聖職者 (Holy Vestments)</option>
+            <option value="rogue">盜賊 / 刺客 (Shadow Gear)</option>
+            <option value="ranger">遊俠 / 弓手 (Ranger Cloak)</option>
+            <option value="monk">武僧 / 格鬥家 (Monk Wraps)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-300">髮型 / 頭飾 (Hairstyle)</label>
+          <select id="selHair" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+            <option value="crown">金冠髮髻 / 鳳冠 (Crown)</option>
+            <option value="ponytail">高馬尾配飄帶 (Ponytail)</option>
+            <option value="elderBun">長者道髻 / 銀釵 (Elder Bun)</option>
+            <option value="twinBun">雙環髻 / 側分長髮 (Twin Bun)</option>
+            <option value="headband">束髮布巾 (Headband)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-300">耳朵 / 種族 (Ears)</label>
+          <select id="selEars" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+            <option value="human">人類耳 (Human)</option>
+            <option value="elf">精靈耳 (Elf)</option>
+            <option value="beast">獸耳 (Beast)</option>
+            <option value="demon">魔族耳 (Demon)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-300">武器 / 配件 (Weapon)</label>
+          <select id="selWeapon" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+            <option value="none">無 (None)</option>
+            <option value="backSword">背劍 (Back Sword)</option>
+            <option value="whisk">拂塵 (Horsetail Whisk)</option>
+            <option value="broadsword">大刀 (Broadsword)</option>
+            <option value="staff">長杖 / 葫蘆 (Staff & Gourd)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <label class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 cursor-pointer hover:border-slate-700">
+          <span class="text-xs font-medium text-slate-200">飄逸披風 (Cape)</span>
+          <input id="chkCape" type="checkbox" class="w-4 h-4 accent-amber-500 rounded cursor-pointer" />
+        </label>
+        <label class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 cursor-pointer hover:border-slate-700">
+          <span class="text-xs font-medium text-slate-200">鬍鬚 (Beard)</span>
+          <input id="chkBeard" type="checkbox" class="w-4 h-4 accent-amber-500 rounded cursor-pointer" />
+        </label>
+      </div>
+
+      <div class="border-t border-slate-800 pt-4 flex flex-col gap-3">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">色彩調色盤 (4 階色相偏移陰影)</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <label class="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2.5 cursor-pointer">
+            <span class="text-[11px] text-slate-400">膚色</span>
+            <div class="flex items-center gap-2">
+              <input id="colSkin" type="color" value="#e8a87c" class="w-7 h-7 rounded bg-transparent border-0 cursor-pointer" />
+              <span id="hexSkin" class="text-[11px] font-mono text-slate-300">#e8a87c</span>
+            </div>
+          </label>
+          <label class="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2.5 cursor-pointer">
+            <span class="text-[11px] text-slate-400">髮色</span>
+            <div class="flex items-center gap-2">
+              <input id="colHair" type="color" value="#4a2c1d" class="w-7 h-7 rounded bg-transparent border-0 cursor-pointer" />
+              <span id="hexHair" class="text-[11px] font-mono text-slate-300">#4a2c1d</span>
+            </div>
+          </label>
+          <label class="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2.5 cursor-pointer">
+            <span class="text-[11px] text-slate-400">服裝主色</span>
+            <div class="flex items-center gap-2">
+              <input id="colPrimary" type="color" value="#2a3f8f" class="w-7 h-7 rounded bg-transparent border-0 cursor-pointer" />
+              <span id="hexPrimary" class="text-[11px] font-mono text-slate-300">#2a3f8f</span>
+            </div>
+          </label>
+          <label class="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2.5 cursor-pointer">
+            <span class="text-[11px] text-slate-400">裝飾輔色</span>
+            <div class="flex items-center gap-2">
+              <input id="colAccent" type="color" value="#e0a82e" class="w-7 h-7 rounded bg-transparent border-0 cursor-pointer" />
+              <span id="hexAccent" class="text-[11px] font-mono text-slate-300">#e0a82e</span>
+            </div>
+          </label>
+          <label class="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2.5 cursor-pointer">
+            <span class="text-[11px] text-slate-400">披風色</span>
+            <div class="flex items-center gap-2">
+              <input id="colCape" type="color" value="#2b5fb0" class="w-7 h-7 rounded bg-transparent border-0 cursor-pointer" />
+              <span id="hexCape" class="text-[11px] font-mono text-slate-300">#2b5fb0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-4 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">分享設定 URL</h3>
+          <span class="text-[11px] text-emerald-400">可直接貼上產生</span>
+        </div>
+        <p class="text-[11px] leading-relaxed text-slate-400">目前屬性會同步寫入網址；把網址分享給其他人即可還原同一角色。加上 <code class="text-sky-300">download=front</code>、<code class="text-sky-300">download=back</code> 或 <code class="text-sky-300">download=sheet</code> 可開啟網址後直接下載 PNG。</p>
+        <div class="flex gap-2">
+          <input id="shareUrl" readonly class="min-w-0 flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-300 focus:outline-none" />
+          <button id="btnCopyUrl" class="shrink-0 px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white transition cursor-pointer">複製 URL</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+// ===ENGINE_START===
+/* =========================================================
+ * 色彩工具：HSL 色相偏移調色盤 (高光偏暖黃、陰影偏冷紫藍)
+ * ========================================================= */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const TONES = ['hi', 'base', 'sh', 'deep'];
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  const l = (mx + mn) / 2, d = mx - mn;
+  let h = 0, s = 0;
+  if (d > 0) {
+    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    if (mx === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return [h, s, l];
+}
+function hslToRgb(h, s, l) {
+  h = (((h % 360) + 360) % 360) / 360;
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const f = (t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return { r: Math.round(f(h + 1 / 3) * 255), g: Math.round(f(h) * 255), b: Math.round(f(h - 1 / 3) * 255) };
+}
+function lerpHue(h, t, a) {
+  const d = ((t - h + 540) % 360) - 180;
+  return h + d * a;
+}
+function makePaletteRgb(c, soft) {
+  const [h, s, l] = rgbToHsl(c.r, c.g, c.b);
+  const gray = s < 0.1;
+  const mk = (dl, tgt, amt, ds) => {
+    const hh = gray ? tgt : lerpHue(h, tgt, amt);
+    const rgb = hslToRgb(hh, clamp(s + ds, 0, 1), clamp(l + dl, 0.03, 0.97));
+    return { ...rgb, a: 255 };
+  };
+  return {
+    hi: mk(0.15, 58, 0.16, -0.03),
+    base: { r: c.r, g: c.g, b: c.b, a: 255 },
+    sh: soft ? mk(-0.11, 12, 0.35, -0.12) : mk(-0.13, 255, 0.14, 0.05),
+    deep: soft ? mk(-0.22, 345, 0.3, -0.1) : mk(-0.26, 262, 0.2, 0.07)
+  };
+}
+function makePalette(hex, soft) { return makePaletteRgb(hexToRgb(hex), soft); }
+function innerPalette(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const [h, s, l] = rgbToHsl(r, g, b);
+  return makePaletteRgb(hslToRgb(h, s * 0.65, clamp(l + 0.38, 0.62, 0.86)));
+}
+function toneOf(pal, c) {
+  for (let i = 0; i < 4; i++) {
+    const p = pal[TONES[i]];
+    if (p.r === c.r && p.g === c.g && p.b === c.b) return i;
+  }
+  return -1;
+}
+function stepTone(pal, c, d) {
+  const i = toneOf(pal, c);
+  if (i < 0) return c;
+  return pal[TONES[clamp(i + d, 0, 3)]];
+}
+
+/* =========================================================
+ * PixelCanvas：像素畫布 + 體積光影 + 彩色描邊
+ * ========================================================= */
+const INK = { r: 14, g: 10, b: 26 };
+
+function linePts(x0, y0, x1, y1) {
+  const pts = [];
+  let ix0 = Math.round(x0), iy0 = Math.round(y0);
+  const ix1 = Math.round(x1), iy1 = Math.round(y1);
+  const dx = Math.abs(ix1 - ix0), dy = Math.abs(iy1 - iy0);
+  const sx = ix0 < ix1 ? 1 : -1, sy = iy0 < iy1 ? 1 : -1;
+  let err = dx - dy;
+  while (true) {
+    pts.push([ix0, iy0]);
+    if (ix0 === ix1 && iy0 === iy1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; ix0 += sx; }
+    if (e2 < dx) { err += dx; iy0 += sy; }
+  }
+  return pts;
+}
+
+class PixelCanvas {
+  constructor(width = 64, height = 64) {
+    this.w = width;
+    this.h = height;
+    this.grid = new Array(width * height).fill(null);
+  }
+  px(x, y, col, noOutline = false) {
+    const ix = Math.round(x), iy = Math.round(y);
+    if (ix < 0 || ix >= this.w || iy < 0 || iy >= this.h) return;
+    this.grid[iy * this.w + ix] = { r: col.r, g: col.g, b: col.b, a: col.a ?? 255, noOutline };
+  }
+  get(x, y) {
+    if (x < 0 || x >= this.w || y < 0 || y >= this.h) return null;
+    return this.grid[y * this.w + x];
+  }
+  rect(x, y, w, h, col, noOutline = false) {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) this.px(x + dx, y + dy, col, noOutline);
+  }
+  ellipse(cx, cy, rx, ry, col, noOutline = false) {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const nx = (x - cx) / rx, ny = (y - cy) / ry;
+        if (nx * nx + ny * ny <= 1.0) this.px(x, y, col, noOutline);
+      }
+    }
+  }
+  line(x0, y0, x1, y1, col, noOutline = false) {
+    for (const [x, y] of linePts(x0, y0, x1, y1)) this.px(x, y, col, noOutline);
+  }
+
+  /* 球面 Lambert 體積著色：光源來自左上，4 階色階 */
+  volume(cx, cy, rx, ry, pal, o = {}) {
+    const L = o.L || [-0.5, -0.62, 0.6];
+    const t = o.t || [0.8, 0.3, -0.2];
+    const inside = (x, y) => {
+      const nx = (x - cx) / rx, ny = (y - cy) / ry;
+      return nx * nx + ny * ny <= 1;
+    };
+    const y0 = Math.floor(cy - ry), y1 = Math.ceil(cy + ry);
+    const x0 = Math.floor(cx - rx), x1 = Math.ceil(cx + rx);
+    const cells = [];
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (!inside(x, y)) continue;
+        const nx = (x - cx) / rx, ny = (y - cy) / ry;
+        const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+        const v = nx * L[0] + ny * L[1] + nz * L[2];
+        let col = v > t[0] ? pal.hi : v > t[1] ? pal.base : v > t[2] ? pal.sh : pal.deep;
+        if (o.mod) col = o.mod(x, y, col, v) || col;
+        this.px(x, y, col);
+        cells.push([x, y]);
+      }
+    }
+    if (o.contour) {
+      const cc = o.contour === true ? pal.deep : o.contour;
+      for (const [x, y] of cells) {
+        if (!inside(x + 1, y) || !inside(x - 1, y) || !inside(x, y + 1) || !inside(x, y - 1)) this.px(x, y, cc);
+      }
+    }
+  }
+
+  /* 彩色選擇性描邊：外框顏色取鄰近像素最暗色混入墨色，而非純黑 */
+  applyOutline() {
+    const copy = this.grid.slice();
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const idx = y * this.w + x;
+        const cur = copy[idx];
+        if (cur && !cur.noOutline) continue;
+        let best = null, bl = 1e9;
+        for (const [dx, dy] of dirs) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || nx >= this.w || ny < 0 || ny >= this.h) continue;
+          const nb = copy[ny * this.w + nx];
+          if (nb && !nb.noOutline) {
+            const l = nb.r * 0.3 + nb.g * 0.59 + nb.b * 0.11;
+            if (l < bl) { bl = l; best = nb; }
+          }
+        }
+        if (best) {
+          this.grid[idx] = {
+            r: Math.round(best.r * 0.2 + INK.r * 0.8),
+            g: Math.round(best.g * 0.2 + INK.g * 0.8),
+            b: Math.round(best.b * 0.2 + INK.b * 0.8),
+            a: 255, noOutline: false
+          };
+        }
+      }
+    }
+  }
+
+  composite(bgMode) {
+    const out = new Uint8ClampedArray(this.w * this.h * 4);
+    const bg = bgMode === 'green' ? { r: 0, g: 153, b: 0, a: 255 } : { r: 0, g: 0, b: 0, a: 0 };
+    for (let i = 0; i < this.w * this.h; i++) {
+      const p = this.grid[i];
+      const o = i * 4;
+      if (!p) {
+        out[o] = bg.r; out[o + 1] = bg.g; out[o + 2] = bg.b; out[o + 3] = bg.a;
+      } else if (p.noOutline && p.a < 255 && bgMode === 'green') {
+        const al = p.a / 255;
+        out[o] = Math.round(p.r * al + bg.r * (1 - al));
+        out[o + 1] = Math.round(p.g * al + bg.g * (1 - al));
+        out[o + 2] = Math.round(p.b * al + bg.b * (1 - al));
+        out[o + 3] = 255;
+      } else {
+        out[o] = p.r; out[o + 1] = p.g; out[o + 2] = p.b; out[o + 3] = p.a;
+      }
+    }
+    return out;
+  }
+
+  renderToCanvas(canvas, bgMode) {
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(this.w, this.h);
+    img.data.set(this.composite(bgMode));
+    ctx.putImageData(img, 0, 0);
+  }
+}
+
+/* =========================================================
+ * 繪圖輔助
+ * ========================================================= */
+const EYE_WHITE = { r: 248, g: 246, b: 240, a: 255 };
+const EYE_DARK = { r: 30, g: 22, b: 36, a: 255 };
+const EYE_IRIS = { r: 74, g: 56, b: 110, a: 255 };
+
+/* 分段線性輪廓：prof([[y,halfWidth],...]) */
+function prof(pts) {
+  return (y) => {
+    if (y <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) {
+      if (y <= pts[i][0]) {
+        const [ya, va] = pts[i - 1], [yb, vb] = pts[i];
+        return va + (vb - va) * (y - ya) / (yb - ya);
+      }
+    }
+    return pts[pts.length - 1][1];
+  };
+}
+
+/* 橫向光影的衣身（左亮右暗） */
+function robe(pc, y0, y1, hwFn, pal, o = {}) {
+  const cx = o.cx ?? 32;
+  for (let y = y0; y <= y1; y++) {
+    const hw = hwFn(y);
+    const xl = Math.round(cx - hw), xr = Math.round(cx + hw);
+    const w = Math.max(1, xr - xl);
+    for (let x = xl; x <= xr; x++) {
+      const u = (x - xl) / w;
+      const col = u < 0.17 ? pal.hi : u < 0.6 ? pal.base : u < 0.87 ? pal.sh : pal.deep;
+      pc.px(x, y, col);
+    }
+  }
+}
+
+/* 衣褶：暗線 + 左側亮邊 */
+function fold(pc, x0, y0, x1, y1, pal) {
+  for (const [x, y] of linePts(x0, y0, x1, y1)) {
+    const c = pc.get(x, y);
+    if (!c || c.noOutline) continue;
+    pc.px(x, y, stepTone(pal, c, 1));
+    const l = pc.get(x - 1, y);
+    if (l && !l.noOutline) pc.px(x - 1, y, stepTone(pal, l, -1));
+  }
+}
+
+/* 把區域內的 from 色階替換為 to 色階（保留光影） */
+function bandRows(pc, y0, y1, x0, x1, from, to) {
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const c = pc.get(x, y);
+      if (!c || c.noOutline) continue;
+      const i = toneOf(from, c);
+      if (i < 0) continue;
+      pc.px(x, y, to[TONES[i]]);
+    }
+  }
+}
+
+/* 斜向刀刃：多條平行線形成 hi / base / sh 色帶 */
+function blade(pc, x0, y0, x1, y1, pal, thick) {
+  const bands = thick === 4 ? [-1, 0, 1, 2] : [-1, 0, 1];
+  const cols = thick === 4 ? [pal.hi, pal.base, pal.base, pal.sh] : [pal.hi, pal.base, pal.sh];
+  const pts = linePts(x0, y0, x1, y1);
+  pts.forEach(([x, y], i) => {
+    bands.forEach((off, k) => {
+      const taper = i > pts.length - 4 && (k === 0 || k === bands.length - 1);
+      if (!taper) pc.px(x, y + off, cols[k]);
+    });
+  });
+}
+
+/* =========================================================
+ * 披風 / 兜帽
+ * ========================================================= */
+function drawCapeFrontMass(pc, P) {
+  robe(pc, 28, 53, prof([[28, 9], [40, 12], [53, 15]]), P.cape, { cx: 34 });
+  fold(pc, 37, 36, 39, 52, P.cape);
+  fold(pc, 31, 42, 29, 52, P.cape);
+  bandRows(pc, 52, 53, 16, 52, P.cape, P.capeTrim);
+}
+function drawHood(pc, P) {
+  pc.volume(32, 28, 9, 3.4, P.cape, { contour: true });
+  pc.px(32, 30, P.acc.hi);
+  pc.px(32, 31, P.acc.base);
+}
+function drawCapeBack(pc, P) {
+  robe(pc, 26, 54, prof([[26, 9], [40, 11], [54, 14.5]]), P.cape);
+  fold(pc, 28, 33, 26, 53, P.cape);
+  fold(pc, 33, 31, 33, 53, P.cape);
+  fold(pc, 38, 33, 41, 53, P.cape);
+  bandRows(pc, 53, 54, 16, 49, P.cape, P.capeTrim);
+  pc.volume(32, 27, 8.8, 3.2, P.cape, { contour: true });
+}
+
+/* =========================================================
+ * 身體：皇族 / 長老
+ * ========================================================= */
+function drawNobleBody(pc, view, st, P, elder) {
+  const f = view === 'front', m = st.gender === 'male';
+  const shoe = elder ? P.shoe : P.goldShoe;
+  pc.volume(27.5, 56, 3.2, 2.2, shoe, { contour: true });
+  pc.volume(36.5, 56, 3.2, 2.2, shoe, { contour: true });
+
+  const hw = m
+    ? prof([[27, 8], [37, 7.3], [54, 12]])
+    : prof([[27, 7], [36, 6], [41, 7.6], [54, 11.6]]);
+  robe(pc, 27, 54, hw, P.pri);
+
+  // 衣褶
+  fold(pc, 28, 42, 25, 53, P.pri);
+  fold(pc, 37, 42, 40, 53, P.pri);
+  if (!f) fold(pc, 32, 42, 32, 53, P.pri);
+
+  // 下襬：金邊 + 淺色襯裡荷葉邊
+  bandRows(pc, 49, 50, 18, 46, P.pri, P.acc);
+  bandRows(pc, 51, 54, 18, 46, P.pri, P.inner);
+  for (let x = 20; x <= 44; x++) {
+    if (pc.get(x, 54)) pc.px(x, 54, x % 3 === 0 ? P.inner.hi : P.inner.sh);
+  }
+
+  if (f) {
+    // 脖頸與交領
+    pc.rect(30, 25, 5, 3, P.skin.sh);
+    for (let y = 27; y <= 35; y++) {
+      const w = (35.5 - y) * 0.5;
+      for (let x = Math.round(32 - w); x <= Math.round(32 + w); x++) {
+        pc.px(x, y, x < 31 ? P.inner.hi : x < 33 ? P.inner.base : P.inner.sh);
+      }
+    }
+    pc.line(27, 27, 32, 36, P.acc.base);
+    pc.line(37, 27, 32, 36, P.acc.sh);
+    pc.line(28, 27, 32, 35, P.acc.hi);
+
+    if (elder) {
+      // 中央淺色衣條 + 腰帶流蘇
+      for (let y = 37; y <= 53; y++) {
+        for (let x = 30; x <= 34; x++) pc.px(x, y, x < 32 ? P.inner.base : P.inner.sh);
+        pc.px(29, y, P.acc.sh);
+        pc.px(35, y, P.acc.deep);
+      }
+      bandRows(pc, 39, 40, 24, 40, P.pri, P.acc);
+      pc.rect(31, 39, 3, 3, P.acc.hi);
+      pc.line(32, 42, 32, 49, P.acc.base);
+      pc.px(32, 50, P.acc.hi);
+    } else {
+      // 中央繡紋裙片
+      for (let y = 41; y <= 49; y++) {
+        pc.px(29, y, P.acc.base);
+        pc.px(35, y, P.acc.sh);
+      }
+      const motif = [[32, 42], [31, 43], [33, 43], [32, 44], [30, 45], [34, 45], [31, 46], [33, 46], [32, 47]];
+      motif.forEach(([x, y]) => pc.px(x, y, P.acc.hi));
+      // 腰封
+      bandRows(pc, 38, 39, 24, 40, P.pri, P.acc);
+      pc.px(32, 38, P.acc.hi);
+    }
+  } else {
+    // 背面：腰封、飄帶、背紋
+    bandRows(pc, 38, 39, 24, 40, P.pri, P.acc);
+    pc.rect(31, 38, 3, 3, P.acc.hi);
+    pc.line(30, 40, 28, 49, P.acc.hi);
+    pc.line(34, 40, 36, 49, P.acc.base);
+    if (!elder) {
+      const ring = [[30, 31], [31, 30], [33, 30], [34, 31], [34, 33], [33, 34], [31, 34], [30, 33]];
+      ring.forEach(([x, y]) => pc.px(x, y, P.acc.base));
+      pc.px(32, 32, P.acc.hi);
+    }
+  }
+
+  // 袖子（寬袖）
+  const slx = 23, srx = 41;
+  pc.volume(slx, 38, 4.4, 7.8, P.pri, { contour: true });
+  pc.volume(srx, 38, 4.4, 7.8, P.pri, { contour: true });
+  bandRows(pc, 43, 46, 17, 28, P.pri, P.acc);
+  bandRows(pc, 43, 46, 36, 47, P.pri, P.acc);
+
+  if (!elder) {
+    pc.volume(24.5, 28.6, 4.6, 2.7, P.acc, { contour: P.acc.deep });
+    pc.volume(39.5, 28.6, 4.6, 2.7, P.acc, { contour: P.acc.deep });
+  } else {
+    pc.volume(24.5, 28.6, 4.4, 2.4, P.pri, { contour: true });
+    pc.volume(39.5, 28.6, 4.4, 2.4, P.pri, { contour: true });
+  }
+
+  if (f) {
+    // 雙臂交叉於胸前
+    pc.volume(32, 37, 9, 3.9, P.pri, { contour: true });
+    fold(pc, 30, 37, 34, 37, P.pri);
+    for (let y = 33; y <= 41; y++) {
+      pc.px(27, y, P.acc.hi); pc.px(28, y, P.acc.base);
+      pc.px(36, y, P.acc.base); pc.px(37, y, P.acc.sh);
+    }
+  } else {
+    // 背面袖口垂放
+    bandRows(pc, 38, 38, 18, 28, P.pri, P.pri);
+  }
+}
+
+/* =========================================================
+ * 身體：俠客 / 劍士
+ * ========================================================= */
+function drawSwordsmanBody(pc, view, st, P) {
+  const f = view === 'front', m = st.gender === 'male';
+  // 褲管與靴
+  pc.volume(28.5, 50, 2.6, 3.4, P.trou, { contour: true });
+  pc.volume(35.5, 50, 2.6, 3.4, P.trou, { contour: true });
+  pc.volume(28, 54.5, 3.4, 3.4, P.boot, { contour: true });
+  pc.volume(36, 55, 3.4, 3.2, P.boot, { contour: true });
+  bandRows(pc, 51, 51, 24, 40, P.boot, P.leather);
+
+  // 長袍
+  const hw = m
+    ? prof([[27, 7.5], [38, 6.8], [51, 9.2]])
+    : prof([[27, 6.6], [36, 5.6], [41, 6.8], [51, 9.2]]);
+  robe(pc, 27, 51, hw, P.pri);
+  fold(pc, 28, 41, 26, 50, P.pri);
+  fold(pc, 37, 41, 39, 50, P.pri);
+  bandRows(pc, 50, 51, 21, 43, P.pri, P.inner);
+  if (f) {
+    for (let y = 44; y <= 50; y++) pc.px(32, y, P.pri.deep);
+    pc.rect(31, 46, 1, 5, P.pri.sh);
+  }
+
+  // 腰帶
+  const bw = m ? 7 : 6;
+  for (let x = 32 - bw; x <= 32 + bw; x++) {
+    pc.px(x, 38, x < 32 ? P.leather.hi : P.leather.base);
+    pc.px(x, 39, x < 32 ? P.leather.base : P.leather.sh);
+  }
+  if (f) { pc.px(32, 38, P.acc.hi); pc.px(32, 39, P.acc.base); pc.px(33, 38, P.acc.sh); }
+  else { pc.line(30, 40, 29, 47, P.leather.base); pc.line(34, 40, 36, 47, P.leather.sh); }
+
+  if (f) {
+    pc.rect(30, 25, 5, 3, P.skin.sh);
+    for (let y = 27; y <= 35; y++) {
+      const w = (35.5 - y) * 0.48;
+      for (let x = Math.round(32 - w); x <= Math.round(32 + w); x++) {
+        pc.px(x, y, x < 32 ? P.inner.base : P.inner.sh);
+      }
+    }
+    pc.line(27, 27, 32, 36, P.pri.deep);
+    pc.line(37, 27, 32, 36, P.pri.deep);
+    pc.line(26, 27, 31, 35, P.pri.hi);
+  }
+
+  // 手臂
+  const aw = m ? 3.3 : 2.8;
+  const lx = m ? 22.5 : 23.3, rx = m ? 41.5 : 40.7;
+  pc.volume(lx, 33.5, aw, 7.2, P.pri, { contour: true });
+  pc.volume(rx, 33.5, aw, 7.2, P.pri, { contour: true });
+  bandRows(pc, 37, 40, 18, 27, P.pri, P.leather);
+  bandRows(pc, 37, 40, 37, 46, P.pri, P.leather);
+  pc.volume(lx, 42.4, 2.5, 2.6, P.skin, { contour: true });
+  pc.volume(rx, 42.4, 2.5, 2.6, P.skin, { contour: true });
+}
+
+/* =========================================================
+ * 身體：武將 / 戰士
+ * ========================================================= */
+function drawGeneralBody(pc, view, st, P) {
+  const f = view === 'front', m = st.gender === 'male';
+  // 腿與靴
+  pc.volume(28.5, 49, 2.8, 4, P.pri, { contour: true });
+  pc.volume(35.5, 49, 2.8, 4, P.pri, { contour: true });
+  pc.volume(28, 54.5, 3.5, 3.5, P.bootBrown, { contour: true });
+  pc.volume(36, 55, 3.5, 3.3, P.bootBrown, { contour: true });
+  bandRows(pc, 51, 52, 23, 41, P.bootBrown, P.acc);
+
+  // 腰甲 (鎖子甲格紋)
+  for (let y = 41; y <= 47; y++) {
+    const hw = 7.4 + (y - 41) * 0.45;
+    const xl = Math.round(32 - hw), xr = Math.round(32 + hw);
+    for (let x = xl; x <= xr; x++) {
+      const chk = (x + y) % 2 === 0;
+      let col = chk ? P.mail.base : P.mail.sh;
+      if (x - xl < 3) col = chk ? P.mail.hi : P.mail.base;
+      if (xr - x < 3) col = chk ? P.mail.sh : P.mail.deep;
+      if (y === 47) col = x % 2 ? P.acc.base : P.acc.sh;
+      pc.px(x, y, col);
+    }
+  }
+
+  // 軀幹底襯
+  robe(pc, 27, 40, m ? prof([[27, 8.5], [40, 7.6]]) : prof([[27, 7.3], [34, 6.1], [40, 6.9]]), P.pri);
+
+  // 胸甲
+  if (f) {
+    pc.volume(32, 32, m ? 7.6 : 6.6, 5.4, P.steel, { contour: P.steel.deep });
+    if (!m) {
+      pc.volume(29, 31, 3.1, 2.7, P.steel, { contour: P.steel.sh });
+      pc.volume(35, 31, 3.1, 2.7, P.steel, { contour: P.steel.sh });
+    }
+    for (let y = 28; y <= 37; y++) pc.px(32, y, y % 2 ? P.acc.hi : P.acc.base);
+    for (let x = 27; x <= 37; x++) pc.px(x, m ? 35 : 34, P.acc.base);
+  } else {
+    pc.volume(32, 32, m ? 7.6 : 6.6, 5.4, P.steel, { contour: P.steel.deep });
+    for (let y = 27; y <= 37; y++) pc.px(32, y, P.steel.deep);
+    for (let x = 27; x <= 37; x++) pc.px(x, 34, P.acc.base);
+  }
+
+  // 腰帶
+  const bw = m ? 7 : 6;
+  for (let x = 32 - bw; x <= 32 + bw; x++) {
+    pc.px(x, 38, x < 32 ? P.leather.hi : P.leather.base);
+    pc.px(x, 39, x < 32 ? P.leather.base : P.leather.sh);
+  }
+  pc.rect(31, 38, 3, 2, P.acc.hi);
+  pc.px(33, 39, P.acc.base);
+
+  // 手臂 + 護腕
+  const aw = m ? 3.5 : 2.9;
+  const lx = m ? 21.5 : 22.5, rx = m ? 42.5 : 41.5;
+  pc.volume(lx, 35, aw, 6.6, P.leather, { contour: true });
+  pc.volume(rx, 35, aw, 6.6, P.leather, { contour: true });
+  bandRows(pc, 38, 41, 17, 27, P.leather, P.acc);
+  bandRows(pc, 38, 41, 37, 47, P.leather, P.acc);
+  pc.volume(lx, 43, 2.6, 2.7, P.skin, { contour: true });
+  pc.volume(rx, 43, 2.6, 2.7, P.skin, { contour: true });
+
+  // 肩甲
+  pc.volume(m ? 22.5 : 24, 28, m ? 5.2 : 4.4, 3.7, P.steel, { contour: P.acc.sh });
+  pc.volume(m ? 41.5 : 40, 28, m ? 5.2 : 4.4, 3.7, P.steel, { contour: P.acc.sh });
+  pc.px(m ? 22 : 23, 26, P.acc.hi);
+  pc.px(m ? 42 : 41, 26, P.acc.base);
+  if (f) pc.rect(30, 25, 5, 3, P.skin.sh);
+}
+
+/* =========================================================
+ * 身體：方士 / 行者
+ * ========================================================= */
+function drawMysticBody(pc, view, st, P) {
+  const f = view === 'front', m = st.gender === 'male';
+  pc.volume(27.5, 56, 3, 2.1, P.shoe, { contour: true });
+  pc.volume(36.5, 56, 3, 2.1, P.shoe, { contour: true });
+
+  const hw = m
+    ? prof([[27, 7.8], [38, 7.2], [54, 11.5]])
+    : prof([[27, 6.8], [36, 5.8], [41, 7.4], [54, 11]]);
+  robe(pc, 27, 54, hw, P.pri);
+  fold(pc, 28, 43, 25, 53, P.pri);
+  fold(pc, 36, 43, 39, 53, P.pri);
+  fold(pc, 32, 43, 32, 53, P.pri);
+  bandRows(pc, 52, 54, 18, 46, P.pri, P.priLayer);
+  bandRows(pc, 53, 53, 18, 46, P.priLayer, P.acc);
+
+  // 寬腰封
+  bandRows(pc, 37, 41, 23, 41, P.pri, P.acc);
+  if (f) {
+    pc.rect(31, 37, 3, 5, P.acc.hi);
+    pc.px(31, 38, P.acc.base);
+    pc.line(32, 42, 30, 49, P.acc.base);
+    pc.line(33, 42, 35, 49, P.acc.sh);
+    pc.rect(30, 25, 5, 3, P.skin.sh);
+    for (let y = 27; y <= 36; y++) {
+      const w = (36.5 - y) * 0.5;
+      for (let x = Math.round(32 - w); x <= Math.round(32 + w); x++) {
+        pc.px(x, y, x < 32 ? P.priLayer.base : P.priLayer.sh);
+      }
+    }
+    pc.line(27, 27, 32, 37, P.acc.base);
+    pc.line(37, 27, 32, 37, P.acc.sh);
+  } else {
+    pc.ellipse(28.5, 43, 2.6, 1.8, P.acc.base);
+    pc.ellipse(35.5, 43, 2.6, 1.8, P.acc.sh);
+    pc.line(30, 44, 28, 51, P.acc.hi);
+    pc.line(34, 44, 36, 51, P.acc.base);
+    pc.rect(31, 38, 3, 4, P.acc.hi);
+  }
+
+  // 寬袖
+  pc.volume(22.5, 38, 4.4, 8.6, P.pri, { contour: true });
+  pc.volume(41.5, 38, 4.4, 8.6, P.pri, { contour: true });
+  bandRows(pc, 44, 46, 17, 28, P.pri, P.acc);
+  bandRows(pc, 44, 46, 36, 47, P.pri, P.acc);
+  pc.volume(24.5, 28.6, 4.4, 2.5, P.pri, { contour: true });
+  pc.volume(39.5, 28.6, 4.4, 2.5, P.pri, { contour: true });
+  if (f) {
+    pc.volume(20.5, 47.5, 2, 1.8, P.skin, { contour: true });
+    pc.volume(43.5, 47.5, 2, 1.8, P.skin, { contour: true });
+  }
+}
+
+/* =========================================================
+ * 武器 / 配件
+ * ========================================================= */
+function drawBackSwordFront(pc, P) {
+  // 劍柄自右肩後方探出
+  pc.line(38, 25, 44, 12, P.wood.base);
+  pc.line(39, 25, 45, 12, P.wood.sh);
+  pc.line(40, 18, 44, 20, P.acc.hi);
+  pc.line(40, 19, 44, 21, P.acc.base);
+  pc.px(44, 11, P.acc.hi);
+  pc.px(45, 10, P.acc.base);
+  pc.px(42, 23, P.acc.sh);
+}
+function drawBackSwordBack(pc, P) {
+  blade(pc, 38, 24, 28, 50, P.steel, 3);
+  pc.line(39, 24, 45, 12, P.wood.base);
+  pc.line(40, 24, 46, 12, P.wood.sh);
+  pc.line(37, 19, 43, 22, P.acc.hi);
+  pc.line(37, 20, 43, 23, P.acc.base);
+  pc.px(45, 11, P.acc.hi);
+  pc.px(46, 10, P.acc.base);
+}
+function drawBroadsword(pc, view, P) {
+  if (view === 'front') {
+    blade(pc, 24, 42, 8, 57, P.steel, 4);
+    pc.line(25, 40, 29, 36, P.wood.base);
+    pc.line(26, 40, 30, 36, P.wood.sh);
+    pc.line(21, 40, 27, 45, P.acc.hi);
+    pc.line(22, 39, 28, 44, P.acc.base);
+    pc.px(31, 35, P.acc.hi);
+    pc.volume(26.5, 40.5, 2.2, 2.2, P.skin, { contour: true });
+  } else {
+    blade(pc, 40, 42, 56, 57, P.steel, 4);
+    pc.line(39, 40, 35, 36, P.wood.base);
+    pc.line(38, 40, 34, 36, P.wood.sh);
+    pc.line(37, 45, 43, 40, P.acc.hi);
+    pc.px(33, 35, P.acc.hi);
+    pc.volume(37.5, 40.5, 2.2, 2.2, P.skin, { contour: true });
+  }
+}
+function drawStaff(pc, view, P) {
+  const sx = view === 'front' ? 46 : 18;
+  const dir = view === 'front' ? -1 : 1;
+  for (let y = 10; y <= 57; y++) {
+    pc.px(sx, y, P.wood.hi);
+    pc.px(sx + 1, y, y % 6 === 0 ? P.wood.deep : P.wood.base);
+    pc.px(sx + 2, y, P.wood.sh);
+  }
+  pc.rect(sx - 1, 9, 4, 2, P.acc.base);
+  pc.px(sx, 8, P.acc.hi);
+  // 葫蘆吊掛
+  pc.line(sx + 1, 14, sx + 1 + dir * 2, 19, P.wood.deep);
+  const gx = sx + 1 + dir * 3;
+  pc.volume(gx, 23.5, 2.2, 2.2, P.gourd, { contour: true });
+  pc.volume(gx, 28, 3.2, 3.4, P.gourd, { contour: true });
+  pc.px(gx, 20, P.acc.hi);
+  // 手握處
+  pc.volume(view === 'front' ? 45 : 19, 38, 2.2, 2.4, P.skin, { contour: true });
+}
+function drawWhisk(pc, view, P) {
+  if (view === 'front') {
+    pc.line(44, 40, 46, 24, P.wood.base);
+    pc.line(45, 40, 47, 24, P.wood.sh);
+    const mod = (x, y, c) => ((x * 3 + y) % 5 === 0 ? stepTone(P.whisk, c, 1) : null);
+    pc.volume(48, 29, 2.8, 7, P.whisk, { mod });
+    pc.volume(50, 36, 2, 4.2, P.whisk, { mod });
+    pc.volume(51, 42, 1.4, 3, P.whisk, { mod });
+    pc.px(46, 23, P.acc.hi);
+    pc.volume(44.5, 40, 2.5, 2.6, P.skin, { contour: true });
+  } else {
+    pc.line(20, 40, 18, 24, P.wood.base);
+    pc.line(21, 40, 19, 24, P.wood.sh);
+    const mod = (x, y, c) => ((x * 3 + y) % 5 === 0 ? stepTone(P.whisk, c, 1) : null);
+    pc.volume(16, 29, 2.8, 7, P.whisk, { mod });
+    pc.volume(14, 36, 2, 4.2, P.whisk, { mod });
+    pc.volume(13, 42, 1.4, 3, P.whisk, { mod });
+    pc.px(18, 23, P.acc.hi);
+    pc.volume(19.5, 40, 2.5, 2.6, P.skin, { contour: true });
+  }
+}
+
+/* =========================================================
+ * 頭部：臉 / 髮 / 頭飾
+ * ========================================================= */
+const BANG_M = [[24, 17], [25, 15], [26, 14], [27, 14], [28, 13], [29, 13], [30, 12], [31, 12], [32, 12], [33, 12], [34, 13], [35, 13], [36, 14], [37, 14], [38, 15], [39, 17]];
+const BANG_F = [[24, 21], [25, 19], [26, 17], [27, 15], [28, 14], [29, 13], [30, 12], [31, 11], [32, 11], [33, 12], [34, 13], [35, 14], [36, 15], [37, 17], [38, 19], [39, 21]];
+
+function hairMod(P) {
+  return (x, y, c) => (((x * 2 + (y >> 1)) % 7 === 0) ? stepTone(P.hair, c, 1) : null);
+}
+
+function drawBangs(pc, st, P) {
+  const tbl = st.gender === 'male' ? BANG_M : BANG_F;
+  for (const [x, bot] of tbl) {
+    for (let y = 8; y <= bot; y++) {
+      const e = pc.get(x, y);
+      if (!e || toneOf(P.skin, e) < 0) continue;
+      let col = P.hair.base;
+      if (y >= bot) col = P.hair.sh;
+      else if (x > 33 && (x * 2 + y) % 4 === 0) col = P.hair.sh;
+      else if (x <= 31 && (x + y) % 5 === 0) col = P.hair.hi;
+      if (x > 35 && y >= bot - 1) col = P.hair.deep;
+      pc.px(x, y, col);
+    }
+  }
+}
+
+function castHairShadow(pc, P) {
+  const mark = [];
+  for (let y = 9; y < 26; y++) {
+    for (let x = 24; x < 41; x++) {
+      const c = pc.get(x, y);
+      if (!c || toneOf(P.skin, c) !== 1) continue;
+      const up = pc.get(x, y - 1);
+      if (up && toneOf(P.hair, up) >= 0) mark.push([x, y]);
+    }
+  }
+  mark.forEach(([x, y]) => pc.px(x, y, P.skin.sh));
+}
+
+function drawFace(pc, st, P) {
+  const m = st.gender === 'male';
+  pc.volume(32, 17.5, m ? 7.8 : 7.4, 8, P.skin, { t: [0.93, 0.28, -0.8] });
+  const rose = { r: 224, g: 118, b: 124, a: 255 };
+  const blush = { r: Math.round(P.skin.base.r * 0.8 + 236 * 0.2), g: Math.round(P.skin.base.g * 0.8 + 120 * 0.2), b: Math.round(P.skin.base.b * 0.8 + 124 * 0.2), a: 255 };
+
+  castHairShadow(pc, P);
+
+  // 眉
+  if (m) {
+    [27, 28, 29, 30].forEach(x => pc.px(x, 15, P.hair.deep));
+    [34, 35, 36, 37].forEach(x => pc.px(x, 15, P.hair.deep));
+    pc.px(30, 14, P.hair.deep);
+    pc.px(34, 14, P.hair.deep);
+  } else {
+    [28, 29].forEach(x => pc.px(x, 15, P.hair.deep));
+    [35, 36].forEach(x => pc.px(x, 15, P.hair.deep));
+  }
+
+  // 眼
+  [28, 34].forEach((ex) => {
+    if (m) {
+      pc.px(ex + 1, 17, EYE_DARK);
+      pc.px(ex + 2, 17, EYE_DARK);
+      pc.px(ex, 18, EYE_WHITE);
+      pc.px(ex + 1, 18, EYE_DARK);
+      pc.px(ex + 2, 18, EYE_DARK);
+    } else {
+      pc.px(ex, 17, EYE_DARK);
+      pc.px(ex + 1, 17, EYE_DARK);
+      pc.px(ex + 2, 17, EYE_DARK);
+      pc.px(ex === 28 ? ex - 1 : ex + 3, 17, EYE_DARK);
+      pc.px(ex, 18, EYE_WHITE);
+      pc.px(ex + 1, 18, EYE_IRIS);
+      pc.px(ex + 2, 18, EYE_DARK);
+      pc.px(ex + 1, 19, EYE_IRIS);
+      pc.px(ex + 2, 19, P.skin.sh);
+    }
+  });
+
+  // 鼻、口、腮紅
+  pc.px(33, 21, P.skin.sh);
+  if (m) {
+    [31, 32, 33].forEach(x => pc.px(x, 23, P.skin.deep));
+  } else {
+    pc.px(31, 23, rose);
+    pc.px(32, 23, rose);
+    pc.px(27, 21, blush); pc.px(28, 21, blush);
+    pc.px(36, 21, blush); pc.px(37, 21, blush);
+  }
+  if (st.cls === 'elder') {
+    pc.px(26, 18, P.skin.sh); pc.px(26, 20, P.skin.sh);
+    pc.px(38, 18, P.skin.sh); pc.px(38, 20, P.skin.sh);
+    pc.px(29, 22, P.skin.sh); pc.px(35, 22, P.skin.sh);
+  }
+}
+
+function drawEars(pc, st, P) {
+  if (st.ears === 'human') return;
+  if (st.ears === 'elf') {
+    pc.line(25, 17, 19, 14, P.skin.hi);
+    pc.line(25, 18, 19, 16, P.skin.sh);
+    pc.line(39, 17, 45, 14, P.skin.base);
+    pc.line(39, 18, 45, 16, P.skin.sh);
+  } else if (st.ears === 'beast') {
+    pc.line(25, 14, 21, 9, P.hair.hi);
+    pc.line(25, 15, 21, 11, P.hair.sh);
+    pc.line(39, 14, 43, 9, P.hair.base);
+    pc.line(39, 15, 43, 11, P.hair.sh);
+    pc.px(22, 12, P.skin.sh); pc.px(42, 12, P.skin.sh);
+  } else if (st.ears === 'demon') {
+    pc.line(26, 13, 23, 7, P.skin.deep);
+    pc.line(26, 14, 23, 10, P.skin.sh);
+    pc.line(38, 13, 41, 7, P.skin.deep);
+    pc.line(38, 14, 41, 10, P.skin.sh);
+  }
+}
+
+function drawBeard(pc, P) {
+  for (let x = 29; x <= 35; x++) pc.px(x, 22, x < 32 ? P.hair.base : P.hair.sh);
+  pc.px(28, 21, P.hair.base);
+  pc.px(36, 21, P.hair.sh);
+  for (let y = 23; y <= 29; y++) {
+    const hw = Math.max(0.8, 4.2 - (y - 23) * 0.62);
+    for (let x = Math.round(32 - hw); x <= Math.round(32 + hw); x++) {
+      let col = x < 31 ? P.hair.hi : x < 34 ? P.hair.base : P.hair.sh;
+      if ((x * 2 + y) % 5 === 0) col = stepTone(P.hair, col, 1);
+      if (y >= 28) col = P.hair.sh;
+      pc.px(x, y, col);
+    }
+  }
+}
+
+function drawHeadFront(pc, st, P) {
+  const m = st.gender === 'male';
+  const mod = hairMod(P);
+  const hair = st.hair;
+
+  // 後方髮量
+  pc.volume(32, 14.5, 10, 9.2, P.hair, { mod });
+  // 女性側邊長髮 / 雙環髻垂髮
+  if (!m || hair === 'twinBun') {
+    // 女性長髮延伸到肩線，讓 64×64 小圖仍能清楚辨識性別。
+    const len = hair === 'twinBun' ? 33 : (!m ? 32 : 24);
+    pc.volume(23, (17 + len) / 2, 2.6, (len - 17) / 2 + 1, P.hair, { mod });
+    pc.volume(41, (17 + len) / 2, 2.6, (len - 17) / 2 + 1, P.hair, { mod });
+  }
+  // 髮髻 / 頭飾（後層）
+  if (hair === 'crown') {
+    pc.volume(32, 6.5, 4.4, 3.4, P.hair, { mod });
+  } else if (hair === 'elderBun') {
+    pc.volume(32, 6, 3.6, 3.3, P.hair, { mod });
+  } else if (hair === 'twinBun') {
+    pc.volume(24.5, 8.5, 3.4, 3.4, P.hair, { mod });
+    pc.volume(39.5, 8.5, 3.4, 3.4, P.hair, { mod });
+  } else if (hair === 'headband') {
+    pc.volume(32, 6, 3.2, 3.2, P.hair, { mod });
+  } else if (hair === 'ponytail') {
+    pc.volume(37.5, 8, 2.4, 2.4, P.hair, { mod });
+    pc.volume(40.5, 14, 2.4, 5.4, P.hair, { mod });
+    pc.volume(41.5, 20, 1.9, 3.6, P.hair, { mod });
+    pc.volume(41, 25, 1.4, 2.4, P.hair, { mod });
+  }
+
+  drawEars(pc, st, P);
+  drawFace(pc, st, P);
+  drawBangs(pc, st, P);
+  castHairShadow(pc, P);
+  // 瀏海覆蓋後重畫五官
+  drawFaceFeaturesOnly(pc, st, P);
+
+  // 頭飾（前層）
+  if (hair === 'crown') {
+    pc.rect(28, 4, 9, 3, P.acc.base);
+    pc.rect(28, 4, 9, 1, P.acc.hi);
+    pc.rect(28, 6, 9, 1, P.acc.sh);
+    pc.px(27, 3, P.acc.hi); pc.px(37, 3, P.acc.base);
+    pc.px(32, 5, { r: 70, g: 150, b: 230, a: 255 });
+    pc.px(31, 5, { r: 150, g: 210, b: 255, a: 255 });
+    if (!m) {
+      pc.rect(26, 9, 13, 1, P.acc.base);
+      pc.px(32, 10, { r: 70, g: 150, b: 230, a: 255 });
+      pc.line(26, 9, 24, 13, P.acc.hi);
+      pc.line(38, 9, 40, 13, P.acc.base);
+      pc.px(24, 14, P.acc.hi); pc.px(40, 14, P.acc.base);
+    }
+  } else if (hair === 'elderBun') {
+    pc.line(27, 6, 38, 3, P.acc.hi);
+    pc.line(27, 7, 38, 4, P.acc.base);
+    pc.px(39, 3, P.acc.hi);
+    pc.px(26, 6, P.acc.sh);
+  } else if (hair === 'twinBun') {
+    pc.rect(23, 11, 3, 1, P.acc.base);
+    pc.rect(38, 11, 3, 1, P.acc.sh);
+    pc.px(24, 7, P.acc.hi); pc.px(39, 7, P.acc.base);
+  } else if (hair === 'headband') {
+    bandRows(pc, 10, 11, 22, 42, P.hair, P.acc);
+    pc.rect(30, 4, 5, 1, P.acc.hi);
+  } else if (hair === 'ponytail') {
+    pc.rect(36, 8, 3, 2, P.acc.base);
+    pc.px(36, 8, P.acc.hi);
+    pc.line(39, 8, 46, 4, P.acc.hi);
+    pc.line(39, 9, 46, 7, P.acc.base);
+    pc.line(39, 10, 45, 13, P.acc.sh);
+  }
+
+  if (st.beard) drawBeard(pc, P);
+  if (!m) drawFemaleFaceAccents(pc, P);
+}
+
+function drawFemaleFaceAccents(pc, P) {
+  // 清楚的外眼角睫毛與柔和眉線。
+  pc.px(26, 16, P.hair.deep);
+  pc.px(27, 15, P.hair.deep);
+  pc.px(37, 15, P.hair.deep);
+  pc.px(38, 16, P.hair.deep);
+
+  // 腮紅增加臉部表情；嘴角用兩像素粉色嘴型保留像素清晰度。
+  const blush = { r: Math.round(P.skin.base.r * 0.72 + 244 * 0.28), g: Math.round(P.skin.base.g * 0.72 + 126 * 0.28), b: Math.round(P.skin.base.b * 0.72 + 136 * 0.28), a: 255 };
+  const lip = { r: 218, g: 91, b: 120, a: 255 };
+  pc.px(26, 21, blush); pc.px(27, 21, blush);
+  pc.px(37, 21, blush); pc.px(38, 21, blush);
+  pc.px(31, 23, lip); pc.px(32, 23, lip);
+  pc.px(32, 24, P.skin.sh);
+}
+
+/* 瀏海覆蓋後重新點上眼、鼻、口（避免被髮絲蓋掉） */
+function drawFaceFeaturesOnly(pc, st, P) {
+  const m = st.gender === 'male';
+  const rose = { r: 224, g: 118, b: 124, a: 255 };
+  const blush = { r: Math.round(P.skin.base.r * 0.8 + 236 * 0.2), g: Math.round(P.skin.base.g * 0.8 + 120 * 0.2), b: Math.round(P.skin.base.b * 0.8 + 124 * 0.2), a: 255 };
+  if (m) {
+    [27, 28, 29, 30].forEach(x => pc.px(x, 15, P.hair.deep));
+    [34, 35, 36, 37].forEach(x => pc.px(x, 15, P.hair.deep));
+  } else {
+    [28, 29].forEach(x => pc.px(x, 15, P.hair.deep));
+    [35, 36].forEach(x => pc.px(x, 15, P.hair.deep));
+  }
+  [28, 34].forEach((ex) => {
+    if (m) {
+      pc.px(ex + 1, 17, EYE_DARK); pc.px(ex + 2, 17, EYE_DARK);
+      pc.px(ex, 18, EYE_WHITE); pc.px(ex + 1, 18, EYE_DARK); pc.px(ex + 2, 18, EYE_DARK);
+    } else if (ex === 28) {
+      // 三分之四視角的遠側眼縮小，避免女性臉仍像完全正面。
+      pc.px(29, 17, EYE_DARK);
+      pc.px(28, 18, EYE_WHITE); pc.px(29, 18, EYE_IRIS);
+      pc.px(29, 19, P.skin.sh);
+    } else {
+      // 近側眼保留較大的虹膜與高光，接近參考圖的日式像素角色。
+      pc.px(ex, 17, EYE_DARK); pc.px(ex + 1, 17, EYE_DARK); pc.px(ex + 2, 17, EYE_DARK);
+      pc.px(ex + 3, 17, EYE_DARK);
+      pc.px(ex, 18, EYE_WHITE); pc.px(ex + 1, 18, EYE_IRIS); pc.px(ex + 2, 18, EYE_DARK);
+      pc.px(ex + 1, 19, EYE_IRIS); pc.px(ex + 2, 19, P.skin.sh);
+    }
+  });
+  pc.px(33, 21, P.skin.sh);
+  if (m) [31, 32, 33].forEach(x => pc.px(x, 23, P.skin.deep));
+  else {
+    pc.px(31, 23, rose); pc.px(32, 23, rose);
+    pc.px(27, 21, blush); pc.px(28, 21, blush); pc.px(36, 21, blush); pc.px(37, 21, blush);
+  }
+}
+
+function drawHeadBack(pc, st, P) {
+  const m = st.gender === 'male';
+  const mod = hairMod(P);
+  const hair = st.hair;
+
+  pc.rect(30, 24, 5, 4, P.skin.sh);
+
+  // 長髮披肩
+  if (!m || hair === 'twinBun') {
+    const bot = hair === 'twinBun' ? 34 : (!m ? 32 : 28);
+    pc.volume(32, (20 + bot) / 2, 7.4, (bot - 20) / 2 + 1, P.hair, { mod });
+  }
+  // 後腦
+  pc.volume(32, 15.5, 9.4, 9.2, P.hair, { mod });
+
+  if (hair === 'crown') {
+    pc.volume(32, 6.5, 4.6, 3.6, P.hair, { mod });
+    pc.rect(28, 4, 9, 3, P.acc.base);
+    pc.rect(28, 4, 9, 1, P.acc.hi);
+    pc.rect(28, 6, 9, 1, P.acc.sh);
+    pc.px(27, 3, P.acc.hi); pc.px(37, 3, P.acc.base);
+    if (!m) {
+      pc.line(27, 9, 25, 14, P.acc.hi);
+      pc.line(37, 9, 39, 14, P.acc.base);
+    }
+    pc.rect(30, 9, 5, 2, P.acc.sh);
+  } else if (hair === 'elderBun') {
+    pc.volume(32, 6, 3.8, 3.4, P.hair, { mod });
+    pc.line(27, 6, 38, 3, P.acc.hi);
+    pc.line(27, 7, 38, 4, P.acc.base);
+  } else if (hair === 'twinBun') {
+    pc.volume(24.5, 8.5, 3.4, 3.4, P.hair, { mod });
+    pc.volume(39.5, 8.5, 3.4, 3.4, P.hair, { mod });
+    pc.rect(23, 11, 3, 1, P.acc.base);
+    pc.rect(38, 11, 3, 1, P.acc.sh);
+  } else if (hair === 'headband') {
+    pc.volume(32, 6, 3.2, 3.2, P.hair, { mod });
+    bandRows(pc, 11, 12, 22, 42, P.hair, P.acc);
+    pc.line(36, 13, 41, 20, P.acc.hi);
+    pc.line(37, 13, 43, 18, P.acc.base);
+  } else if (hair === 'ponytail') {
+    pc.volume(32, 8.5, 2.6, 2.4, P.hair, { mod });
+    pc.volume(33, 15, 2.8, 5.5, P.hair, { mod });
+    pc.volume(34, 22.5, 2.4, 4.4, P.hair, { mod });
+    pc.volume(33.5, 28, 1.8, 3, P.hair, { mod });
+    pc.rect(31, 9, 3, 2, P.acc.base);
+    pc.line(31, 10, 25, 7, P.acc.hi);
+    pc.line(31, 11, 25, 14, P.acc.base);
+  }
+}
+
+/* =========================================================
+ * 組裝角色
+ * ========================================================= */
+function buildPalettes(state) {
+  const pri = makePalette(state.colPrimary);
+  const acc = makePalette(state.colAccent);
+  return {
+    skin: makePalette(state.colSkin, true),
+    hair: makePalette(state.colHair),
+    pri,
+    acc,
+    inner: innerPalette(state.colPrimary),
+    priLayer: makePaletteRgb((() => {
+      const { r, g, b } = hexToRgb(state.colPrimary);
+      const [h, s, l] = rgbToHsl(r, g, b);
+      return hslToRgb(h, s * 0.9, clamp(l + 0.12, 0.2, 0.7));
+    })()),
+    cape: makePalette(state.colCape),
+    capeTrim: acc,
+    steel: makePalette('#a5b0c2'),
+    wood: makePalette('#7a4a26'),
+    gourd: makePalette('#d9861a'),
+    whisk: makePalette('#e6ecf3'),
+    leather: makePalette('#6b4423'),
+    boot: makePalette('#505462'),
+    bootBrown: makePalette('#8a5a2c'),
+    trou: makePalette('#2f3447'),
+    shoe: makePalette('#3a2c28'),
+    goldShoe: makePalette('#c8962e'),
+    mail: makePalette('#7a5832')
+  };
+}
+
+function drawGroundShadow(pc) {
+  pc.ellipse(31, 57, 15, 3.8, { r: 0, g: 0, b: 0, a: 105 }, true);
+}
+
+function drawMageBody(pc, view, st, P) {
+  drawMysticBody(pc, view, st, P);
+  if (view === 'front') {
+    bandRows(pc, 29, 31, 25, 39, P.acc, P.pri);
+    pc.line(28, 32, 24, 45, P.acc.base);
+    pc.line(36, 32, 40, 45, P.acc.sh);
+    pc.px(32, 34, P.acc.hi);
+  }
+}
+
+function drawPriestBody(pc, view, st, P) {
+  drawNobleBody(pc, view, st, P, false);
+  if (view === 'front') {
+    for (let y = 29; y <= 48; y++) pc.px(32, y, y % 3 === 0 ? P.acc.hi : P.inner.base);
+    pc.px(32, 31, P.acc.hi); pc.px(31, 32, P.acc.base); pc.px(33, 32, P.acc.base);
+  }
+}
+
+function drawRogueBody(pc, view, st, P) {
+  drawSwordsmanBody(pc, view, st, P);
+  if (view === 'front') {
+    pc.rect(27, 29, 10, 2, P.pri.deep);
+    pc.line(27, 31, 24, 42, P.pri.sh);
+    pc.line(37, 31, 40, 42, P.pri.deep);
+  }
+}
+
+function drawRangerBody(pc, view, st, P) {
+  drawSwordsmanBody(pc, view, st, P);
+  if (st.cape) return;
+  if (view === 'front') {
+    pc.line(25, 29, 20, 49, P.pri.sh);
+    pc.line(39, 29, 44, 49, P.pri.deep);
+    bandRows(pc, 38, 40, 24, 40, P.acc, P.pri);
+  } else {
+    robe(pc, 28, 52, prof([[28, 8], [42, 11], [52, 14]]), P.priLayer, { cx: 32 });
+  }
+}
+
+function drawMonkBody(pc, view, st, P) {
+  drawNobleBody(pc, view, st, P, true);
+  if (view === 'front') {
+    bandRows(pc, 35, 38, 24, 40, P.acc, P.pri);
+    pc.line(27, 39, 24, 48, P.acc.base);
+    pc.line(37, 39, 40, 48, P.acc.sh);
+  }
+}
+
+function drawBody(pc, view, st, P) {
+  switch (st.cls) {
+    case 'noble': drawNobleBody(pc, view, st, P, false); break;
+    case 'elder': drawNobleBody(pc, view, st, P, true); break;
+    case 'swordsman': drawSwordsmanBody(pc, view, st, P); break;
+    case 'general': drawGeneralBody(pc, view, st, P); break;
+    case 'mystic': drawMysticBody(pc, view, st, P); break;
+    case 'mage': drawMageBody(pc, view, st, P); break;
+    case 'priest': drawPriestBody(pc, view, st, P); break;
+    case 'rogue': drawRogueBody(pc, view, st, P); break;
+    case 'ranger': drawRangerBody(pc, view, st, P); break;
+    case 'monk': drawMonkBody(pc, view, st, P); break;
+  }
+}
+
+function renderCharacter(state) {
+  const P = buildPalettes(state);
+  const frontPC = new PixelCanvas(64, 64);
+  const backPC = new PixelCanvas(64, 64);
+
+  // ---- 正面 ----
+  drawGroundShadow(frontPC);
+  if (state.cape) drawCapeFrontMass(frontPC, P);
+  if (state.weapon === 'backSword') drawBackSwordFront(frontPC, P);
+  drawBody(frontPC, 'front', state, P);
+  if (state.cape) drawHood(frontPC, P);
+  if (state.weapon === 'staff') drawStaff(frontPC, 'front', P);
+  drawHeadFront(frontPC, state, P);
+  if (state.weapon === 'whisk') drawWhisk(frontPC, 'front', P);
+  if (state.weapon === 'broadsword') drawBroadsword(frontPC, 'front', P);
+  frontPC.applyOutline();
+
+  // ---- 背面 ----
+  drawGroundShadow(backPC);
+  drawBody(backPC, 'back', state, P);
+  if (state.weapon === 'backSword') drawBackSwordBack(backPC, P);
+  if (state.cape) drawCapeBack(backPC, P);
+  if (state.weapon === 'staff') drawStaff(backPC, 'back', P);
+  drawHeadBack(backPC, state, P);
+  if (state.weapon === 'whisk') drawWhisk(backPC, 'back', P);
+  if (state.weapon === 'broadsword') drawBroadsword(backPC, 'back', P);
+  backPC.applyOutline();
+
+  return { frontPC, backPC };
+}
+
+/*
+ * 將正面或背面角色轉成參考圖風格的 45° 三分之四視角。
+ * 這不是整張圖片的 affine 傾斜：先縮短遠側，再沿「左下 → 右上」
+ * 對角線重複疊圖，擠出可見的側面平面。陰影明度統一由左上往右下變深。
+ */
+function shadePixel(p, amount = 0.22) {
+  return {
+    r: Math.max(0, Math.round(p.r * (1 - amount))),
+    g: Math.max(0, Math.round(p.g * (1 - amount))),
+    b: Math.max(0, Math.round(p.b * (1 - amount))),
+    a: p.a ?? 255,
+    noOutline: true
+  };
+}
+
+function pickInnerMaterial(base, x, y, fallback) {
+  const candidates = [
+    base.get(x - 1, y), base.get(x - 2, y),
+    base.get(x, y + 1), base.get(x - 1, y + 1),
+    base.get(x, y + 2)
+  ].filter(p => p && p.a === 255);
+  if (!candidates.length) return fallback;
+  // 選輪廓內較亮的材質，避免把黑色描邊延伸成頭部陰影。
+  return candidates.reduce((best, p) => {
+    const lum = p.r * 0.3 + p.g * 0.59 + p.b * 0.11;
+    const bestLum = best.r * 0.3 + best.g * 0.59 + best.b * 0.11;
+    return lum > bestLum ? p : best;
+  });
+}
+
+function isWeaponPixel(x, y, state) {
+  // 武器也疊圖，但限制為最多 3 層；其他元素可依部位使用完整厚度。
+  if (state.weapon === 'staff' && (x <= 21 || x >= 44)) return true;
+  if (state.weapon === 'whisk' && (x <= 21 || x >= 43) && y >= 20 && y <= 46) return true;
+  if (state.weapon === 'broadsword' && y >= 34 && (x <= 25 || x >= 39)) return true;
+  if (state.weapon === 'backSword' && ((x >= 37 && y <= 27) || (x >= 27 && x <= 47 && y >= 42))) return true;
+  return false;
+}
+
+function project45ThreeQuarter(source, state) {
+  const base = new PixelCanvas(64, 64);
+  const projected = [];
+
+  // 遠側縮短、近側保留，避免整體只像被旋轉或傾斜。
+  for (let y = 0; y < source.h; y++) {
+    for (let x = 0; x < source.w; x++) {
+      const p = source.get(x, y);
+      if (!p) continue;
+      const projectedX = Math.round(31 + (x - 32) * (x < 32 ? 0.73 : 0.91));
+      if (projectedX >= 0 && projectedX < 64) {
+        base.px(projectedX, y, p, p.noOutline);
+        projected.push([projectedX, y, p]);
+      }
+    }
+  }
+
+  // 只從人物外輪廓擠出側面，不複製身體內部像素。
+  // 這是 2.5D sprite 的關鍵：內部保持單一正面平面，避免出現重影。
+  const side = new PixelCanvas(64, 64);
+  for (let d = 5; d >= 1; d--) {
+    for (const [x, y, p] of projected) {
+      const tx = x + d;
+      const ty = y - d;
+      if (tx < 0 || tx >= 64 || ty < 0 || ty >= 64 || side.get(tx, ty) || base.get(tx, ty)) continue;
+      const weapon = isWeaponPixel(x, y, state);
+      const normalDepth = y < 9 ? 1 : y < 14 ? 2 : y < 28 ? 3 : y < 48 ? 5 : 3;
+      const depthLimit = weapon ? 3 : normalDepth;
+      const isContour = !base.get(x + 1, y - 1) || !base.get(x + 1, y) || !base.get(x, y - 1);
+      if (!isContour) continue;
+      if (d <= depthLimit) {
+        const shadowAmount = 0.08 + (d / depthLimit) * 0.18;
+        // 輪廓本身通常是黑色描邊，側面要取輪廓內側材質，避免頭部變成黑色尖角。
+        const material = pickInnerMaterial(base, x, y, p);
+        side.px(tx, ty, shadePixel(material, shadowAmount), true);
+      }
+    }
+  }
+
+  // 正面平面最後疊回來，讓側面影子只出現在輪廓外，不會污染角色主體。
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x++) {
+      const p = base.get(x, y) || side.get(x, y);
+      if (p) {
+        if (base.get(x, y)) side.px(x, y, p, p.noOutline);
+      }
+    }
+  }
+  return side;
+}
+// ===ENGINE_END===
+
+    /* =========================================================
+     * UI 控制
+     * ========================================================= */
+    const ui = {
+      gender: document.getElementById('selGender'),
+      cls: document.getElementById('selClass'),
+      hair: document.getElementById('selHair'),
+      ears: document.getElementById('selEars'),
+      weapon: document.getElementById('selWeapon'),
+      cape: document.getElementById('chkCape'),
+      beard: document.getElementById('chkBeard'),
+      colSkin: document.getElementById('colSkin'),
+      colHair: document.getElementById('colHair'),
+      colPrimary: document.getElementById('colPrimary'),
+      colAccent: document.getElementById('colAccent'),
+      colCape: document.getElementById('colCape'),
+      frontCanvas: document.getElementById('frontDisplay'),
+      backCanvas: document.getElementById('backDisplay'),
+      frontWrapper: document.getElementById('frontWrapper'),
+      backWrapper: document.getElementById('backWrapper'),
+      shareUrl: document.getElementById('shareUrl'),
+      copyUrl: document.getElementById('btnCopyUrl')
+    };
+
+    let currentZoom = 4;
+    let bgMode = 'green';
+
+    function getState() {
+      return {
+        gender: ui.gender.value,
+        cls: ui.cls.value,
+        hair: ui.hair.value,
+        ears: ui.ears.value,
+        weapon: ui.weapon.value,
+        cape: ui.cape.checked,
+        beard: ui.beard.checked,
+        colSkin: ui.colSkin.value,
+        colHair: ui.colHair.value,
+        colPrimary: ui.colPrimary.value,
+        colAccent: ui.colAccent.value,
+        colCape: ui.colCape.value
+      };
+    }
+
+    const URL_KEYS = {
+      gender: 'gender', cls: 'class', hair: 'hair', ears: 'ears', weapon: 'weapon',
+      cape: 'cape', beard: 'beard', colSkin: 'skin', colHair: 'hairColor',
+      colPrimary: 'primary', colAccent: 'accent', colCape: 'capeColor'
+    };
+
+    function updateShareUrl() {
+      const params = new URLSearchParams();
+      const state = getState();
+      Object.entries(URL_KEYS).forEach(([stateKey, urlKey]) => {
+        const value = state[stateKey];
+        params.set(urlKey, typeof value === 'boolean' ? (value ? '1' : '0') : value);
+      });
+      params.set('bg', bgMode);
+      params.set('zoom', String(currentZoom));
+      const baseUrl = window.location.href.split('?')[0].split('#')[0];
+      const url = `${baseUrl}?${params.toString()}`;
+      ui.shareUrl.value = url;
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }
+
+    function applyUrlState() {
+      const params = new URLSearchParams(window.location.search);
+      const setSelect = (el, key) => {
+        if (params.has(key) && [...el.options].some(o => o.value === params.get(key))) el.value = params.get(key);
+      };
+      setSelect(ui.gender, URL_KEYS.gender);
+      setSelect(ui.cls, URL_KEYS.cls);
+      setSelect(ui.hair, URL_KEYS.hair);
+      setSelect(ui.ears, URL_KEYS.ears);
+      setSelect(ui.weapon, URL_KEYS.weapon);
+      [['cape', ui.cape], ['beard', ui.beard]].forEach(([key, el]) => {
+        if (params.has(key)) el.checked = params.get(key) === '1' || params.get(key) === 'true';
+      });
+      [['skin', ui.colSkin], ['hairColor', ui.colHair], ['primary', ui.colPrimary], ['accent', ui.colAccent], ['capeColor', ui.colCape]].forEach(([key, el]) => {
+        const value = params.get(key);
+        if (value && /^#[0-9a-f]{6}$/i.test(value)) el.value = value;
+      });
+      if (params.get('bg') === 'transparent') bgMode = 'transparent';
+      const zoom = Number(params.get('zoom'));
+      if ([2, 4, 6].includes(zoom)) currentZoom = zoom;
+    }
+
+    function updateHexLabels() {
+      document.getElementById('hexSkin').textContent = ui.colSkin.value;
+      document.getElementById('hexHair').textContent = ui.colHair.value;
+      document.getElementById('hexPrimary').textContent = ui.colPrimary.value;
+      document.getElementById('hexAccent').textContent = ui.colAccent.value;
+      document.getElementById('hexCape').textContent = ui.colCape.value;
+    }
+
+    function applyZoom() {
+      const pxSize = `${64 * currentZoom}px`;
+      ui.frontCanvas.style.width = pxSize;
+      ui.frontCanvas.style.height = pxSize;
+      ui.backCanvas.style.width = pxSize;
+      ui.backCanvas.style.height = pxSize;
+    }
+
+    function renderAll() {
+      updateHexLabels();
+      const state = getState();
+      const { frontPC, backPC } = renderCharacter(state);
+      const front45PC = project45ThreeQuarter(frontPC, state);
+      const back45PC = project45ThreeQuarter(backPC, state);
+      front45PC.renderToCanvas(ui.frontCanvas, bgMode);
+      back45PC.renderToCanvas(ui.backCanvas, bgMode);
+      applyZoom();
+      updateShareUrl();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => toast.classList.add('hidden'), 2600);
+    }
+
+    const PRESETS = {
+      skins: ['#f2c29b', '#e8a87c', '#d99364', '#f6d0b1'],
+      hairs: ['#4a2c1d', '#2c1e16', '#1a1a24', '#5a3825', '#0f172a'],
+      primaries: ['#2a3f8f', '#3f8f5a', '#2f8f86', '#8a3a1e', '#4a2a78', '#9a6a1c'],
+      accents: ['#e0a82e', '#38bdf8', '#f43f5e', '#a855f7', '#cbd5e1'],
+      capes: ['#2b5fb0', '#8a2a3a', '#2a7a5a', '#5a3a8a', '#3a3f4f']
+    };
+
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    document.getElementById('btnRandom').addEventListener('click', () => {
+      ui.gender.value = pick(['male', 'female']);
+      ui.cls.value = pick(['noble', 'elder', 'swordsman', 'general', 'mystic', 'mage', 'priest', 'rogue', 'ranger', 'monk']);
+      ui.hair.value = pick(['crown', 'ponytail', 'elderBun', 'twinBun', 'headband']);
+      ui.ears.value = pick(['human', 'human', 'elf', 'beast', 'demon']);
+      ui.weapon.value = pick(['none', 'backSword', 'whisk', 'broadsword', 'staff']);
+      ui.cape.checked = Math.random() > 0.55;
+      ui.beard.checked = ui.gender.value === 'male' && (ui.cls.value === 'elder' || Math.random() > 0.65);
+      ui.colSkin.value = pick(PRESETS.skins);
+      ui.colHair.value = ui.cls.value === 'elder' ? '#d1d5db' : pick(PRESETS.hairs);
+      ui.colPrimary.value = pick(PRESETS.primaries);
+      ui.colAccent.value = pick(PRESETS.accents);
+      ui.colCape.value = pick(PRESETS.capes);
+      renderAll();
+    });
+
+    document.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentZoom = parseInt(btn.dataset.zoom, 10);
+        document.querySelectorAll('.zoom-btn').forEach(b => {
+          b.classList.remove('bg-amber-500', 'text-slate-950');
+          b.classList.add('text-slate-400');
+        });
+        btn.classList.add('bg-amber-500', 'text-slate-950');
+        btn.classList.remove('text-slate-400');
+        applyZoom();
+      });
+    });
+
+    document.getElementById('btnBgToggle').addEventListener('click', () => {
+      bgMode = bgMode === 'green' ? 'transparent' : 'green';
+      const dot = document.getElementById('bgDot');
+      const label = document.getElementById('bgLabel');
+      const hint = document.getElementById('exportBgHint');
+
+      if (bgMode === 'green') {
+        ui.frontWrapper.classList.replace('checkerboard', 'chroma-green');
+        ui.backWrapper.classList.replace('checkerboard', 'chroma-green');
+        dot.className = 'w-3 h-3 rounded-full bg-[#009900] border border-white/40 inline-block';
+        label.textContent = '綠幕 (#009900)';
+        hint.textContent = '綠幕 (#009900)';
+        hint.className = 'text-emerald-400 font-semibold';
+      } else {
+        ui.frontWrapper.classList.replace('chroma-green', 'checkerboard');
+        ui.backWrapper.classList.replace('chroma-green', 'checkerboard');
+        dot.className = 'w-3 h-3 rounded-full bg-slate-500 border border-white/40 inline-block';
+        label.textContent = '透明背景 (PNG)';
+        hint.textContent = '透明 (Alpha)';
+        hint.className = 'text-sky-400 font-semibold';
+      }
+      renderAll();
+    });
+
+    [ui.gender, ui.cls, ui.hair, ui.ears, ui.weapon, ui.cape, ui.beard, ui.colSkin, ui.colHair, ui.colPrimary, ui.colAccent, ui.colCape]
+      .forEach(el => el.addEventListener('input', renderAll));
+
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function makeSheetCanvas() {
+      const sheet = document.createElement('canvas');
+      sheet.width = 128;
+      sheet.height = 64;
+      const ctx = sheet.getContext('2d');
+      ctx.drawImage(ui.frontCanvas, 0, 0);
+      ctx.drawImage(ui.backCanvas, 64, 0);
+      return sheet;
+    }
+
+    document.getElementById('btnDlFront').addEventListener('click', () => {
+      downloadCanvas(ui.frontCanvas, `wuxia-front-45deg-64x64-${bgMode}.png`);
+      showToast('已下載 45° 正面 64×64 PNG！');
+    });
+
+    document.getElementById('btnDlBack').addEventListener('click', () => {
+      downloadCanvas(ui.backCanvas, `wuxia-back-45deg-64x64-${bgMode}.png`);
+      showToast('已下載 45° 背面 64×64 PNG！');
+    });
+
+    document.getElementById('btnDlSheet').addEventListener('click', () => {
+      const sheet = makeSheetCanvas();
+      downloadCanvas(sheet, `wuxia-front-back-128x64-${bgMode}.png`);
+      showToast('已下載正背面合併精靈圖 128×64 PNG！');
+    });
+
+    ui.copyUrl.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(ui.shareUrl.value);
+        showToast('已複製設定 URL，可直接分享！');
+      } catch {
+        ui.shareUrl.select();
+        document.execCommand('copy');
+        showToast('已複製設定 URL，可直接分享！');
+      }
+    });
+
+    // 給 GitHub Pages、LLM、瀏覽器自動化與外部腳本使用的穩定 API。
+    // 例如：window.CharacterGenerator.setState({ gender: 'female', weapon: 'broadsword' })
+    window.CharacterGenerator = {
+      version: '1.0.0',
+      getState,
+      getUrl: () => ui.shareUrl.value,
+      render: renderAll,
+      setState(next = {}) {
+        const fields = {
+          gender: ui.gender, cls: ui.cls, hair: ui.hair, ears: ui.ears, weapon: ui.weapon,
+          cape: ui.cape, beard: ui.beard, colSkin: ui.colSkin, colHair: ui.colHair,
+          colPrimary: ui.colPrimary, colAccent: ui.colAccent, colCape: ui.colCape
+        };
+        Object.entries(next).forEach(([key, value]) => {
+          const el = fields[key];
+          if (!el || value === undefined || value === null) return;
+          if (el.type === 'checkbox') el.checked = value === true || value === 1 || value === '1';
+          else el.value = String(value);
+        });
+        renderAll();
+        return getState();
+      },
+      download(kind = 'front') {
+        if (kind === 'front') downloadCanvas(ui.frontCanvas, `wuxia-front-45deg-64x64-${bgMode}.png`);
+        else if (kind === 'back') downloadCanvas(ui.backCanvas, `wuxia-back-45deg-64x64-${bgMode}.png`);
+        else if (kind === 'sheet') downloadCanvas(makeSheetCanvas(), `wuxia-front-back-128x64-${bgMode}.png`);
+        else throw new Error('download must be front, back, or sheet');
+      }
+    };
+
+    window.onload = () => {
+      const requestedDownload = new URLSearchParams(window.location.search).get('download');
+      applyUrlState();
+      const wantsTransparent = bgMode === 'transparent';
+      if (wantsTransparent) {
+        bgMode = 'green';
+        document.getElementById('btnBgToggle').click();
+      }
+      renderAll();
+      if (['front', 'back', 'sheet'].includes(requestedDownload)) {
+        setTimeout(() => {
+          if (requestedDownload === 'front') {
+            downloadCanvas(ui.frontCanvas, `wuxia-front-45deg-64x64-${bgMode}.png`);
+          } else if (requestedDownload === 'back') {
+            downloadCanvas(ui.backCanvas, `wuxia-back-45deg-64x64-${bgMode}.png`);
+          } else {
+            downloadCanvas(makeSheetCanvas(), `wuxia-front-back-128x64-${bgMode}.png`);
+          }
+        }, 180);
+      }
+    };
+  </script>
+</body>
+</html>

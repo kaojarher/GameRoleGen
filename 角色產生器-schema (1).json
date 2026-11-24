@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Wuxia 2.5D Character Generator URL Parameters",
+  "type": "object",
+  "properties": {
+    "gender": { "type": "string", "enum": ["male", "female"] },
+    "class": { "type": "string", "enum": ["noble", "elder", "swordsman", "general", "mystic", "mage", "priest", "rogue", "ranger", "monk"] },
+    "hair": { "type": "string", "enum": ["crown", "ponytail", "elderBun", "twinBun", "headband"] },
+    "ears": { "type": "string", "enum": ["human", "elf", "beast", "demon"] },
+    "weapon": { "type": "string", "enum": ["none", "backSword", "whisk", "broadsword", "staff"] },
+    "cape": { "type": "string", "enum": ["0", "1"] },
+    "beard": { "type": "string", "enum": ["0", "1"] },
+    "skin": { "type": "string", "pattern": "^%23[0-9a-fA-F]{6}$" },
+    "hairColor": { "type": "string", "pattern": "^%23[0-9a-fA-F]{6}$" },
+    "primary": { "type": "string", "pattern": "^%23[0-9a-fA-F]{6}$" },
+    "accent": { "type": "string", "pattern": "^%23[0-9a-fA-F]{6}$" },
+    "capeColor": { "type": "string", "pattern": "^%23[0-9a-fA-F]{6}$" },
+    "bg": { "type": "string", "enum": ["green", "transparent"] },
+    "zoom": { "type": "string", "enum": ["2", "4", "6"] },
+    "download": { "type": "string", "enum": ["front", "back", "sheet"] }
+  },
+  "additionalProperties": false
+}
